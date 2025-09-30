@@ -724,6 +724,59 @@ void editStand(nlohmann::ordered_json &configJson, const std::string &standName)
     }
 }
 
+void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("STAND") && configJson["STAND"].is_object() && configJson["STAND"].contains(standNameUpper))
+    {
+        std::string newStandName;
+        std::cout << "Enter new stand name for the copy: ";
+        while (true) {
+            std::getline(std::cin, newStandName);
+            std::transform(newStandName.begin(), newStandName.end(), newStandName.begin(), ::toupper);
+            if (newStandName.empty())
+            {
+                std::cout << RED << "New stand name cannot be empty." << RESET << std::endl;
+                std::cout << "Enter new stand name for the copy: ";
+                continue;
+            } else if (configJson["STAND"].contains(newStandName))
+            {
+                std::cout << RED << "Stand " << newStandName << " already exists." << RESET << std::endl;
+                std::cout << "Enter new stand name for the copy: ";
+                continue;
+            } else {
+                configJson["STAND"][newStandName] = configJson["STAND"][standNameUpper];
+                break;
+            }
+        }
+        std::cout << "Enter new coordinates for the copied stand (format: lat:lon:radius): ";
+        std::string coordinates;
+        while (true)
+        {
+            std::getline(std::cin, coordinates);
+            if (!isCoordinatesValid(coordinates))
+            {
+                std::cout << RED << "Invalid coordinates format. Please use lat:lon:radius (e.g., 43.666359:7.216941:20)." << RESET << std::endl;
+                std::cout << "Enter new coordinates for the copied stand (format: lat:lon:radius): ";
+                continue;
+            }
+            else
+            {
+                configJson["STAND"][newStandName]["Coordinates"] = coordinates;
+                break;
+            }
+        }
+        std::cout << GREEN << "Stand " << standNameUpper << " copied to " << newStandName << "." << RESET << std::endl;
+        printStandInfo(configJson["STAND"][newStandName]);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << RED << "Stand " << standNameUpper << " does not exist." << RESET << std::endl;
+    }
+}
+
 int main()
 {
     std::cout << "Config Creator " + std::string(version) << std::endl;
@@ -777,7 +830,7 @@ int main()
         else if (command.rfind("copy ", 0) == 0)
         {
             std::string standName = command.substr(5);
-            // copyStand(configJson, standName);
+            copyStand(configJson, standName);
         }
         else if (command.rfind("edit ", 0) == 0)
         {
