@@ -116,7 +116,23 @@ void saveFile(const std::string &icao, const nlohmann::ordered_json &configJson)
     std::ofstream outputFile(baseDir + icao + ".json");
     if (outputFile)
     {
-        outputFile << configJson.dump(4);
+        nlohmann::ordered_json sortedStands;
+        if (configJson.contains("STAND") && configJson["STAND"].is_object())
+        {
+            std::vector<std::string> standKeys;
+            for (auto &[key, value] : configJson["STAND"].items())
+            {
+                standKeys.push_back(key);
+            }
+            std::sort(standKeys.begin(), standKeys.end());
+            for (const auto &key : standKeys)
+            {
+                sortedStands[key] = configJson["STAND"][key];
+            }
+        }
+        nlohmann::ordered_json finalJson = configJson;
+        finalJson["STAND"] = sortedStands;
+        outputFile << finalJson.dump(4);
         std::cout << GREEN << "Config file saved: " << icao << ".json" << RESET << std::endl;
         outputFile.close();
     }
