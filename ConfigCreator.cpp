@@ -5,7 +5,7 @@
 #include <algorithm>
 #include "nlohmann/json.hpp"
 
-constexpr auto version = "v1.0.0";
+constexpr auto version = "v1.0.1";
 constexpr auto baseDir = "./configs/";
 
 // Standard colors
@@ -148,7 +148,8 @@ void printMenu()
     std::cout << GREY << "Available commands:" << std::endl;
     std::cout << " add <standName> : add new stand" << std::endl;
     std::cout << " remove <standName> : remove existing stand" << std::endl;
-    std::cout << " copy <standName> : copy existing stand" << std::endl;
+    std::cout << " copy <standName> : copy existing stand settings" << std::endl;
+    std::cout << " softcopy <sourceStand> : copy existing stand settings but iterate through them so you can modify" << std::endl;
     std::cout << " edit <standName> : edit existing stand" << std::endl;
     std::cout << " list : list all stands" << std::endl;
     std::cout << " save : save changes and exit" << std::endl;
@@ -793,6 +794,323 @@ void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
     }
 }
 
+void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("STAND") && configJson["STAND"].is_object() && configJson["STAND"].contains(standNameUpper))
+    {
+        std::string newStandName;
+        std::cout << "Enter new stand name for the copy: ";
+        while (true) {
+            std::getline(std::cin, newStandName);
+            std::transform(newStandName.begin(), newStandName.end(), newStandName.begin(), ::toupper);
+            if (newStandName.empty())
+            {
+                std::cout << RED << "New stand name cannot be empty." << RESET << std::endl;
+                std::cout << "Enter new stand name for the copy: ";
+                continue;
+            } else if (configJson["STAND"].contains(newStandName))
+            {
+                std::cout << RED << "Stand " << newStandName << " already exists." << RESET << std::endl;
+                std::cout << "Enter new stand name for the copy: ";
+                continue;
+            } else {
+                configJson["STAND"][newStandName] = configJson["STAND"][standNameUpper];
+                break;
+            }
+        }
+        std::cout << "Enter new coordinates for the copied stand (format: lat:lon:radius): ";
+        std::string coordinates;
+        while (true)
+        {
+            std::getline(std::cin, coordinates);
+            if (!isCoordinatesValid(coordinates))
+            {
+                std::cout << RED << "Invalid coordinates format. Please use lat:lon:radius (e.g., 43.666359:7.216941:20)." << RESET << std::endl;
+                std::cout << "Enter new coordinates for the copied stand (format: lat:lon:radius): ";
+                continue;
+            }
+            else
+            {
+                configJson["STAND"][newStandName]["Coordinates"] = coordinates;
+                break;
+            }
+        }
+
+        nlohmann::ordered_json &standJson = configJson["STAND"][newStandName];
+        std::cout << "Soft copying stand " << BLUE << BOLD << standNameUpper << RESET << std::endl;
+        printStandInfo(standJson);
+
+        std::cout << "Enter new code (current: " << (standJson.contains("Code") ? standJson["Code"].get<std::string>() : "none") << ", empty to keep, r to remove): ";
+        std::string code;
+        while (true)
+        {
+            std::getline(std::cin, code);
+            if (code.empty())
+            {
+                break; // Keep current
+            }
+            else if (code == "r" || code == "R")
+            {
+                standJson.erase("Code");
+                break;
+            }
+            else
+            {
+                std::transform(code.begin(), code.end(), code.begin(), ::toupper);
+                standJson["Code"] = code;
+                break;
+            }
+        }
+
+        std::cout << "Enter new use (current: " << (standJson.contains("Use") ? standJson["Use"].get<std::string>() : "none") << ", single character, empty to keep, r to remove): ";
+        std::string use;
+        while (true)
+        {
+            std::getline(std::cin, use);
+            if (use.length() > 1)
+            {
+                std::cout << RED << "Use must be a single character." << RESET << std::endl;
+                std::cout << "Enter new use (single character, empty to keep/remove): ";
+                continue;
+            }
+            else if (use.empty())
+            {
+                break; // Keep current
+            }
+            else if (use == "r" || use == "R")
+            {
+                standJson.erase("Use");
+                break;
+            }
+            else
+            {
+                std::transform(use.begin(), use.end(), use.begin(), ::toupper);
+                standJson["Use"] = use;
+                break;
+            }
+        }
+
+        std::cout << "Is it a Schengen stand? (current: " << (standJson.contains("Schengen") ? (standJson["Schengen"].get<bool>() ? "Yes" : "No") : "none") << " Y/N, empty to keep, r to remove): ";
+        std::string schengen;
+        while (true)
+        {
+            std::getline(std::cin, schengen);
+            if (schengen.empty())
+            {
+                break; // Keep current
+            }
+            else if (schengen == "r" || schengen == "R")
+            {
+                standJson.erase("Schengen");
+                break;
+            }
+            else if (schengen == "Y" || schengen == "y")
+            {
+                standJson["Schengen"] = true;
+                break;
+            }
+            else if (schengen == "N" || schengen == "n")
+            {
+                standJson["Schengen"] = false;
+                break;
+            }
+            else
+            {
+                std::cout << RED << "Invalid input. Please enter 'Y', 'N', 'R' to remove or leave empty to keep." << RESET << std::endl;
+            }
+        }
+
+        std::cout << "Enter new callsigns (current: ";
+        if (standJson.contains("Callsigns"))
+        {
+            for (const auto &cs : standJson["Callsigns"])
+            {
+                std::cout << cs << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+        std::cout << ", comma separated, empty to keep, r to remove): ";
+        std::string callsignsInput;
+        while (true)
+        {
+            std::getline(std::cin, callsignsInput);
+            if (callsignsInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (callsignsInput == "r" || callsignsInput == "R")
+            {
+                standJson.erase("Callsigns");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> callsigns = splitString(callsignsInput);
+                if (!callsigns.empty())
+                {
+                    standJson["Callsigns"] = callsigns;
+                }
+                else
+                {
+                    standJson.erase("Callsigns");
+                }
+                break;
+            }
+        }
+
+        std::cout << "Enter new countries (current: ";
+        if (standJson.contains("Countries"))
+        {
+            for (const auto &country : standJson["Countries"])
+            {
+                std::cout << country << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+
+        std::cout << ", comma separated, empty to keep, r to remove): ";
+        std::string countriesInput;
+        while (true)
+        {
+            std::getline(std::cin, countriesInput);
+            if (countriesInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (countriesInput == "r" || countriesInput == "R")
+            {
+                standJson.erase("Countries");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> countries = splitString(countriesInput);
+                if (!countries.empty())
+                {
+                    standJson["Countries"] = countries;
+                }
+                else
+                {
+                    standJson.erase("Countries");
+                }
+                break;
+            }
+        }
+
+        std::cout << "Enter new blocked stands (current: ";
+        if (standJson.contains("Block"))
+        {
+            for (const auto &blk : standJson["Block"])
+            {
+                std::cout << blk << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+        std::cout << ", comma separated, empty to keep, r to remove): ";
+        std::string blockInput;
+        while (true)
+        {
+            std::getline(std::cin, blockInput);
+            if (blockInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (blockInput == "r" || blockInput == "R")
+            {
+                standJson.erase("Block");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> blocked = splitString(blockInput);
+                if (!blocked.empty())
+                {
+                    standJson["Block"] = blocked;
+                }
+                else
+                {
+                    standJson.erase("Block");
+                }
+                break;
+            }
+        }
+
+        std::cout << "Enter new priority (current: " << (standJson.contains("Priority") ? std::to_string(standJson["Priority"].get<int>()) : "none") << ", integer, empty to keep, r to remove): ";
+        std::string priorityInput;
+        while (true)
+        {
+            std::getline(std::cin, priorityInput);
+            if (priorityInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (priorityInput == "r" || priorityInput == "R")
+            {
+                standJson.erase("Priority");
+                break;
+            }
+            else
+            {
+                try
+                {
+                    int priority = std::stoi(priorityInput);
+                    standJson["Priority"] = priority;
+                    break;
+                }
+                catch (const std::exception &e)
+                {
+                    std::cout << RED << "Invalid priority input." << RESET << std::endl;
+                    std::cout << "Enter new priority (integer, empty to keep/remove): ";
+                    continue;
+                }
+            }
+        }
+
+        std::cout << "Is it an apron stand? (current: " << (standJson.contains("Apron") ? (standJson["Apron"].get<bool>() ? "Yes" : "No") : "No") << " Y if apron, empty to keep, r to remove): ";
+        std::string apronInput;
+        while (true)
+        {
+            std::getline(std::cin, apronInput);
+            if (apronInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (apronInput == "r" || apronInput == "R")
+            {
+                standJson.erase("Apron");
+                break;
+            }
+            else if (apronInput == "Y" || apronInput == "y")
+            {
+                standJson["Apron"] = true;
+                break;
+            }
+            else
+            {
+                std::cout << RED << "Invalid input. Please enter 'Y', 'N', 'R' to remove or leave empty to keep." << RESET << std::endl;
+            }
+        }
+        std::cout << GREEN << "Stand " << newStandName << " added." << RESET;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << RED << "Stand " << standNameUpper << " does not exist." << RESET << std::endl;
+    }
+}
+
 int main()
 {
     std::cout << "Config Creator " + std::string(version) << std::endl;
@@ -847,6 +1165,11 @@ int main()
         {
             std::string standName = command.substr(5);
             copyStand(configJson, standName);
+        }
+        else if (command.rfind("softcopy ", 0) == 0)
+        {
+            std::string standName = command.substr(9);
+            softStandCopy(configJson, standName);
         }
         else if (command.rfind("edit ", 0) == 0)
         {
