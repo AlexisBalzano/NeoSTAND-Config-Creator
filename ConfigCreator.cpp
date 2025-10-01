@@ -148,7 +148,7 @@ void printMenu()
     std::cout << GREY << "Available commands:" << std::endl;
     std::cout << " add <standName> : add new stand" << std::endl;
     std::cout << " remove <standName> : remove existing stand" << std::endl;
-    std::cout << " copy <standName> : copy existing stand settings" << std::endl;
+    std::cout << " copy <sourceStand> : copy existing stand settings" << std::endl;
     std::cout << " softcopy <sourceStand> : copy existing stand settings but iterate through them so you can modify" << std::endl;
     std::cout << " edit <standName> : edit existing stand" << std::endl;
     std::cout << " list : list all stands" << std::endl;
