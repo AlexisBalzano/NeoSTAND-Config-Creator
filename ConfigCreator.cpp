@@ -3,9 +3,12 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <sstream>
+#include <vector>
+#include <regex>
 #include "nlohmann/json.hpp"
 
-constexpr auto version = "v1.0.1";
+constexpr auto version = "v1.0.2";
 constexpr auto baseDir = "./configs/";
 
 // Standard colors
@@ -231,8 +234,14 @@ void listAllStands(const nlohmann::ordered_json &configJson)
     }
 }
 
-bool isCoordinatesValid(const std::string &coordinates)
+bool isCoordinatesValid(std::string &coordinates)
 {
+    // Remove "COORD:" prefix if present
+    if (coordinates.substr(0, 6) == "COORD:")
+    {
+        coordinates = coordinates.substr(6);
+    }
+    
     // Basic validation of Degree decimal format
     size_t firstColon = coordinates.find(':');
     size_t secondColon = coordinates.find(':', firstColon + 1);
@@ -240,27 +249,75 @@ bool isCoordinatesValid(const std::string &coordinates)
     {
         return false;
     }
-    // Check if the parts are valid numbers
-    std::string lat = coordinates.substr(0, firstColon);
-    std::string lon = coordinates.substr(firstColon + 1, secondColon - firstColon - 1);
-    std::string radius = coordinates.substr(secondColon + 1);
-
-    // Valid format : 43.666359:7.216941:20
-    try
+    
+    // Check if already in decimal format - allow empty radius
+    std::regex degreeDecimalRegex(R"(([-+]?\d{1,3}\.\d+):([-+]?\d{1,3}\.\d+):(\d*))");
+    if (std::regex_match(coordinates, degreeDecimalRegex))
     {
-        double latVal = std::stod(lat);
-        double lonVal = std::stod(lon);
-        double radiusVal = std::stod(radius);
-        if (latVal < -90 || latVal > 90 || lonVal < -180 || lonVal > 180 || radiusVal < 0)
+        // Valid format : 43.666359:7.216941:20
+        std::string lat = coordinates.substr(0, firstColon);
+        std::string lon = coordinates.substr(firstColon + 1, secondColon - firstColon - 1);
+        std::string radius = coordinates.substr(secondColon + 1);
+        try
+        {
+            double latVal = std::stod(lat);
+            double lonVal = std::stod(lon);
+            if (latVal < -90 || latVal > 90 || lonVal < -180 || lonVal > 180)
+            {
+                return false;
+            }
+            // Validate radius if provided
+            if (!radius.empty())
+            {
+                double radiusVal = std::stod(radius);
+                if (radiusVal < 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        catch (...)
         {
             return false;
         }
     }
-    catch (...)
+    
+    // Try to convert from DMS format like N043.37.40.861:E001.22.36.064:25 or COORD:N043.37.40.861:E001.22.36.064:25
+    std::regex dmsRegex(R"([NS](\d{3})\.(\d{2})\.(\d{2})\.(\d{3}):[EW](\d{3})\.(\d{2})\.(\d{2})\.(\d{3}):(\d+))");
+    std::smatch match;
+    if (std::regex_match(coordinates, match, dmsRegex))
     {
-        return false;
+        // Convert latitude
+        int latDeg = std::stoi(match[1]);
+        int latMin = std::stoi(match[2]);
+        int latSec = std::stoi(match[3]);
+        int latMillisec = std::stoi(match[4]);
+        double latDecimal = latDeg + latMin / 60.0 + (latSec + latMillisec / 1000.0) / 3600.0;
+        if (coordinates[0] == 'S') latDecimal = -latDecimal;
+        
+        // Convert longitude
+        int lonDeg = std::stoi(match[5]);
+        int lonMin = std::stoi(match[6]);
+        int lonSec = std::stoi(match[7]);
+        int lonMillisec = std::stoi(match[8]);
+        double lonDecimal = lonDeg + lonMin / 60.0 + (lonSec + lonMillisec / 1000.0) / 3600.0;
+        if (coordinates.find("W") != std::string::npos) lonDecimal = -lonDecimal;
+        
+        std::string radius = match[9].str();
+        
+        // Validate ranges
+        if (latDecimal < -90 || latDecimal > 90 || lonDecimal < -180 || lonDecimal > 180)
+        {
+            return false;
+        }
+        
+        // Update coordinates to decimal format
+        coordinates = std::to_string(latDecimal) + ":" + std::to_string(lonDecimal) + ":" + radius;
+        return true;
     }
-    return true;
+    
+    return false;
 }
 
 void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
@@ -749,7 +806,8 @@ void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
     {
         std::string newStandName;
         std::cout << "Enter new stand name for the copy: ";
-        while (true) {
+        while (true)
+        {
             std::getline(std::cin, newStandName);
             std::transform(newStandName.begin(), newStandName.end(), newStandName.begin(), ::toupper);
             if (newStandName.empty())
@@ -757,12 +815,15 @@ void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
                 std::cout << RED << "New stand name cannot be empty." << RESET << std::endl;
                 std::cout << "Enter new stand name for the copy: ";
                 continue;
-            } else if (configJson["STAND"].contains(newStandName))
+            }
+            else if (configJson["STAND"].contains(newStandName))
             {
                 std::cout << RED << "Stand " << newStandName << " already exists." << RESET << std::endl;
                 std::cout << "Enter new stand name for the copy: ";
                 continue;
-            } else {
+            }
+            else
+            {
                 configJson["STAND"][newStandName] = configJson["STAND"][standNameUpper];
                 break;
             }
@@ -802,7 +863,8 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
     {
         std::string newStandName;
         std::cout << "Enter new stand name for the copy: ";
-        while (true) {
+        while (true)
+        {
             std::getline(std::cin, newStandName);
             std::transform(newStandName.begin(), newStandName.end(), newStandName.begin(), ::toupper);
             if (newStandName.empty())
@@ -810,12 +872,15 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
                 std::cout << RED << "New stand name cannot be empty." << RESET << std::endl;
                 std::cout << "Enter new stand name for the copy: ";
                 continue;
-            } else if (configJson["STAND"].contains(newStandName))
+            }
+            else if (configJson["STAND"].contains(newStandName))
             {
                 std::cout << RED << "Stand " << newStandName << " already exists." << RESET << std::endl;
                 std::cout << "Enter new stand name for the copy: ";
                 continue;
-            } else {
+            }
+            else
+            {
                 configJson["STAND"][newStandName] = configJson["STAND"][standNameUpper];
                 break;
             }
@@ -1145,7 +1210,6 @@ int main()
         else if (command == "save")
         {
             saveFile(icao, configJson);
-            break;
         }
         else if (command == "list")
         {
