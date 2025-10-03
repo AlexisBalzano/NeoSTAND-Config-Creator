@@ -105,7 +105,7 @@ bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson)
     {
         // Create default config
         configJson = {
-            {"VERSION", "1.0.0"},
+            {"version", "1.0.0"},
             {"ICAO", icao},
             {"STAND", {}}};
         std::cout << "Created default config structure." << std::endl;
@@ -374,13 +374,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
         while (true)
         {
             std::getline(std::cin, use);
-            if (use.length() > 1)
-            {
-                std::cout << RED << "Use must be a single character." << RESET << std::endl;
-                std::cout << "Enter use (optional): ";
-                continue;
-            }
-            else if (!use.empty())
+            if (!use.empty())
             {
                 std::transform(use.begin(), use.end(), use.begin(), ::toupper);
                 configJson["STAND"][standNameUpper]["Use"] = use;
@@ -556,13 +550,7 @@ void editStand(nlohmann::ordered_json &configJson, const std::string &standName)
         while (true)
         {
             std::getline(std::cin, use);
-            if (use.length() > 1)
-            {
-                std::cout << RED << "Use must be a single character." << RESET << std::endl;
-                std::cout << "Enter new use (single character, empty to keep/remove): ";
-                continue;
-            }
-            else if (use.empty())
+            if (use.empty())
             {
                 break; // Keep current
             }
@@ -934,13 +922,7 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
         while (true)
         {
             std::getline(std::cin, use);
-            if (use.length() > 1)
-            {
-                std::cout << RED << "Use must be a single character." << RESET << std::endl;
-                std::cout << "Enter new use (single character, empty to keep/remove): ";
-                continue;
-            }
-            else if (use.empty())
+            if (use.empty())
             {
                 break; // Keep current
             }
