@@ -1227,17 +1227,21 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([)" << centerLat << ", " << centerLon << R"(], 16);
+        var map = L.map('map', {
+            maxZoom: 19  // Increase maximum zoom level
+        }).setView([)" << centerLat << ", " << centerLon << R"(], 16);
         
         // Add satellite tile layer
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 19  // Set tile layer max zoom
         }).addTo(map);
         
         // Add OpenStreetMap overlay for airport details
         var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            opacity: 0.3
+            opacity: 0.3,
+            maxZoom: 19  // OSM has lower max zoom
         }).addTo(map);
         
         // Color function for different stand types
@@ -1345,6 +1349,31 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                     }
                     
                     htmlFile << "        circle_" << standName << ".bindPopup(popupContent_" << standName << ");\n";
+                    
+                    // Add click event to circle for coordinate copying
+                    htmlFile << "        circle_" << standName << ".on('click', function(e) {\n";
+                    htmlFile << "            var lat = e.latlng.lat.toFixed(6);\n";
+                    htmlFile << "            var lng = e.latlng.lng.toFixed(6);\n";
+                    htmlFile << "            var coordString = lat + ':' + lng;\n";
+                    htmlFile << "            \n";
+                    htmlFile << "            // Copy to clipboard\n";
+                    htmlFile << "            if (navigator.clipboard && window.isSecureContext) {\n";
+                    htmlFile << "                navigator.clipboard.writeText(coordString).then(function() {\n";
+                    htmlFile << "                    console.log('Coordinates copied: ' + coordString);\n";
+                    htmlFile << "                }).catch(function(err) {\n";
+                    htmlFile << "                    console.error('Failed to copy coordinates: ', err);\n";
+                    htmlFile << "                });\n";
+                    htmlFile << "            } else {\n";
+                    htmlFile << "                // Fallback for older browsers\n";
+                    htmlFile << "                var textArea = document.createElement('textarea');\n";
+                    htmlFile << "                textArea.value = coordString;\n";
+                    htmlFile << "                document.body.appendChild(textArea);\n";
+                    htmlFile << "                textArea.select();\n";
+                    htmlFile << "                document.execCommand('copy');\n";
+                    htmlFile << "                document.body.removeChild(textArea);\n";
+                    htmlFile << "            }\n";
+                    htmlFile << "            // Don't prevent the popup from showing\n";
+                    htmlFile << "        });\n\n";
 
                     // Calculate width based on stand name length
                     int labelWidth = std::max(30, static_cast<int>(standName.length()) * 8);
@@ -1378,10 +1407,73 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                 '<i style="background:#45B7D1; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Schengen<br>' +
                 '<i style="background:#4ECDC4; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Non-Schengen<br>' +
                 '<i style="background:#FF6B6B; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Apron<br><br>' +
-                '<small>Click circles for details</small>';
+                '<small>Click circles for details<br>Click map to copy coordinates</small>';
             return div;
         };
         legend.addTo(map);
+        
+        // Add click event to copy coordinates to clipboard
+        map.on('click', function(e) {
+            var lat = e.latlng.lat.toFixed(6);
+            var lng = e.latlng.lng.toFixed(6);
+            var coordString = lat + ':' + lng;
+            
+            // Copy to clipboard
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(coordString).then(function() {
+                    // Show temporary popup at click location
+                    var popup = L.popup()
+                        .setLatLng(e.latlng)
+                        .setContent('<div style="text-align: center;"><strong>Coordinates copied!</strong><br>' + coordString + '</div>')
+                        .openOn(map);
+                    
+                    // Auto-close popup after 2 seconds
+                    setTimeout(function() {
+                        map.closePopup(popup);
+                    }, 2000);
+                }).catch(function(err) {
+                    console.error('Failed to copy coordinates: ', err);
+                    // Fallback method
+                    fallbackCopyTextToClipboard(coordString, e.latlng);
+                });
+            } else {
+                // Fallback for older browsers
+                fallbackCopyTextToClipboard(coordString, e.latlng);
+            }
+        });
+        
+        // Fallback copy function for older browsers
+        function fallbackCopyTextToClipboard(text, latlng) {
+            var textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Avoid scrolling to bottom
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+            
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                var successful = document.execCommand('copy');
+                var popup = L.popup()
+                    .setLatLng(latlng)
+                    .setContent('<div style="text-align: center;"><strong>' + 
+                               (successful ? 'Coordinates copied!' : 'Copy failed - please copy manually') + 
+                               '</strong><br>' + text + '</div>')
+                    .openOn(map);
+                
+                setTimeout(function() {
+                    map.closePopup(popup);
+                }, 2000);
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+            
+            document.body.removeChild(textArea);
+        }
         
         // Add layer control
         var baseMaps = {
