@@ -106,9 +106,8 @@ bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson)
     {
         // Create default config
         configJson = {
-            {"version", "1.0.0"},
             {"ICAO", icao},
-            {"STAND", {}}};
+            {"Stands", {}}};
         std::cout << "Created default config structure." << std::endl;
     }
 
@@ -121,21 +120,21 @@ void saveFile(const std::string &icao, const nlohmann::ordered_json &configJson)
     if (outputFile)
     {
         nlohmann::ordered_json sortedStands;
-        if (configJson.contains("STAND") && configJson["STAND"].is_object())
+        if (configJson.contains("Stands") && configJson["Stands"].is_object())
         {
             std::vector<std::string> standKeys;
-            for (auto &[key, value] : configJson["STAND"].items())
+            for (auto &[key, value] : configJson["Stands"].items())
             {
                 standKeys.push_back(key);
             }
             std::sort(standKeys.begin(), standKeys.end());
             for (const auto &key : standKeys)
             {
-                sortedStands[key] = configJson["STAND"][key];
+                sortedStands[key] = configJson["Stands"][key];
             }
         }
         nlohmann::ordered_json finalJson = configJson;
-        finalJson["STAND"] = sortedStands;
+        finalJson["Stands"] = sortedStands;
         outputFile << finalJson.dump(4);
         std::cout << GREEN << "Config file saved: " << icao << ".json" << RESET << std::endl;
         outputFile.close();
@@ -221,10 +220,10 @@ void printStandInfo(const nlohmann::ordered_json &standJson)
 
 void listAllStands(const nlohmann::ordered_json &configJson)
 {
-    if (configJson.contains("STAND") && configJson["STAND"].is_object())
+    if (configJson.contains("Stands") && configJson["Stands"].is_object())
     {
         std::cout << "Current stands:" << std::endl;
-        for (auto &[key, value] : configJson["STAND"].items())
+        for (auto &[key, value] : configJson["Stands"].items())
         {
             std::cout << " - " << BLUE << BOLD << key << RESET;
             printStandInfo(value);
@@ -326,17 +325,17 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
 {
     std::string standNameUpper = standName;
     std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
-    if (!configJson.contains("STAND") || !configJson["STAND"].is_object())
+    if (!configJson.contains("Stands") || !configJson["Stands"].is_object())
     {
-        configJson["STAND"] = nlohmann::ordered_json::object();
+        configJson["Stands"] = nlohmann::ordered_json::object();
     }
-    if (configJson["STAND"].contains(standNameUpper))
+    if (configJson["Stands"].contains(standNameUpper))
     {
         std::cout << RED << "Stand " << standNameUpper << " already exists." << RESET << std::endl;
     }
     else
     {
-        configJson["STAND"][standNameUpper] = nlohmann::ordered_json::object();
+        configJson["Stands"][standNameUpper] = nlohmann::ordered_json::object();
 
         std::cout << "Enter coordinates (format: lat:lon:radius): ";
         std::string coordinates;
@@ -351,7 +350,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             }
             else
             {
-                configJson["STAND"][standNameUpper]["Coordinates"] = coordinates;
+                configJson["Stands"][standNameUpper]["Coordinates"] = coordinates;
                 break;
             }
         }
@@ -364,7 +363,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             if (!code.empty())
             {
                 std::transform(code.begin(), code.end(), code.begin(), ::toupper);
-                configJson["STAND"][standNameUpper]["Code"] = code;
+                configJson["Stands"][standNameUpper]["Code"] = code;
                 break;
             }
             else
@@ -379,7 +378,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             if (!use.empty())
             {
                 std::transform(use.begin(), use.end(), use.begin(), ::toupper);
-                configJson["STAND"][standNameUpper]["Use"] = use;
+                configJson["Stands"][standNameUpper]["Use"] = use;
                 break;
             }
             else
@@ -393,7 +392,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
         bool notSchengen = (schengenInput == "n" || schengenInput == "N");
         if (schengen || notSchengen)
         {
-            configJson["STAND"][standNameUpper]["Schengen"] = schengen;
+            configJson["Stands"][standNameUpper]["Schengen"] = schengen;
         }
 
         std::cout << "Enter callsigns (comma separated, optional): ";
@@ -404,7 +403,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             std::vector<std::string> callsigns = splitString(callsignsInput);
             if (!callsigns.empty())
             {
-                configJson["STAND"][standNameUpper]["Callsigns"] = callsigns;
+                configJson["Stands"][standNameUpper]["Callsigns"] = callsigns;
             }
         }
 
@@ -416,7 +415,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             std::vector<std::string> countries = splitString(countriesInput);
             if (!countries.empty())
             {
-                configJson["STAND"][standNameUpper]["Countries"] = countries;
+                configJson["Stands"][standNameUpper]["Countries"] = countries;
             }
         }
 
@@ -428,7 +427,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             std::vector<std::string> blocked = splitString(blockInput);
             if (!blocked.empty())
             {
-                configJson["STAND"][standNameUpper]["Block"] = blocked;
+                configJson["Stands"][standNameUpper]["Block"] = blocked;
             }
         }
 
@@ -442,7 +441,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
                 try
                 {
                     int priority = std::stoi(priorityInput);
-                    configJson["STAND"][standNameUpper]["Priority"] = priority;
+                    configJson["Stands"][standNameUpper]["Priority"] = priority;
                     break;
                 }
                 catch (const std::exception &e)
@@ -462,11 +461,11 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
         bool apron = (apronInput == "y" || apronInput == "Y");
         if (apron)
         {
-            configJson["STAND"][standNameUpper]["Apron"] = apron;
+            configJson["Stands"][standNameUpper]["Apron"] = apron;
         }
 
         std::cout << "Stand " << BLUE << standNameUpper << " added." << RESET;
-        printStandInfo(configJson["STAND"][standNameUpper]);
+        printStandInfo(configJson["Stands"][standNameUpper]);
         std::cout << std::endl;
     }
 }
@@ -475,11 +474,11 @@ void removeStand(nlohmann::ordered_json &configJson, const std::string &standNam
 {
     std::string standNameUpper = standName;
     std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
-    if (configJson.contains("STAND") && configJson["STAND"].is_object())
+    if (configJson.contains("Stands") && configJson["Stands"].is_object())
     {
-        if (configJson["STAND"].contains(standNameUpper))
+        if (configJson["Stands"].contains(standNameUpper))
         {
-            configJson["STAND"].erase(standNameUpper);
+            configJson["Stands"].erase(standNameUpper);
             std::cout << GREEN << "Stand " << standNameUpper << " removed." << RESET << std::endl;
         }
         else
@@ -497,9 +496,9 @@ void editStand(nlohmann::ordered_json &configJson, const std::string &standName)
 {
     std::string standNameUpper = standName;
     std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
-    if (configJson.contains("STAND") && configJson["STAND"].is_object() && configJson["STAND"].contains(standNameUpper))
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
     {
-        nlohmann::ordered_json &standJson = configJson["STAND"][standNameUpper];
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
         std::cout << "Editing stand " << BLUE << BOLD << standNameUpper << RESET << std::endl;
         printStandInfo(standJson);
 
@@ -792,7 +791,7 @@ void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
 {
     std::string standNameUpper = standName;
     std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
-    if (configJson.contains("STAND") && configJson["STAND"].is_object() && configJson["STAND"].contains(standNameUpper))
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
     {
         std::string newStandName;
         std::cout << "Enter new stand name for the copy: ";
@@ -806,7 +805,7 @@ void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
                 std::cout << "Enter new stand name for the copy: ";
                 continue;
             }
-            else if (configJson["STAND"].contains(newStandName))
+            else if (configJson["Stands"].contains(newStandName))
             {
                 std::cout << RED << "Stand " << newStandName << " already exists." << RESET << std::endl;
                 std::cout << "Enter new stand name for the copy: ";
@@ -814,7 +813,7 @@ void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
             }
             else
             {
-                configJson["STAND"][newStandName] = configJson["STAND"][standNameUpper];
+                configJson["Stands"][newStandName] = configJson["Stands"][standNameUpper];
                 break;
             }
         }
@@ -831,12 +830,12 @@ void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
             }
             else
             {
-                configJson["STAND"][newStandName]["Coordinates"] = coordinates;
+                configJson["Stands"][newStandName]["Coordinates"] = coordinates;
                 break;
             }
         }
         std::cout << GREEN << "Stand " << standNameUpper << " copied to " << newStandName << "." << RESET << std::endl;
-        printStandInfo(configJson["STAND"][newStandName]);
+        printStandInfo(configJson["Stands"][newStandName]);
         std::cout << std::endl;
     }
     else
@@ -849,7 +848,7 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
 {
     std::string standNameUpper = standName;
     std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
-    if (configJson.contains("STAND") && configJson["STAND"].is_object() && configJson["STAND"].contains(standNameUpper))
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
     {
         std::string newStandName;
         std::cout << "Enter new stand name for the copy: ";
@@ -863,7 +862,7 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
                 std::cout << "Enter new stand name for the copy: ";
                 continue;
             }
-            else if (configJson["STAND"].contains(newStandName))
+            else if (configJson["Stands"].contains(newStandName))
             {
                 std::cout << RED << "Stand " << newStandName << " already exists." << RESET << std::endl;
                 std::cout << "Enter new stand name for the copy: ";
@@ -871,7 +870,7 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
             }
             else
             {
-                configJson["STAND"][newStandName] = configJson["STAND"][standNameUpper];
+                configJson["Stands"][newStandName] = configJson["Stands"][standNameUpper];
                 break;
             }
         }
@@ -888,12 +887,12 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
             }
             else
             {
-                configJson["STAND"][newStandName]["Coordinates"] = coordinates;
+                configJson["Stands"][newStandName]["Coordinates"] = coordinates;
                 break;
             }
         }
 
-        nlohmann::ordered_json &standJson = configJson["STAND"][newStandName];
+        nlohmann::ordered_json &standJson = configJson["Stands"][newStandName];
         std::cout << "Soft copying stand " << BLUE << BOLD << standNameUpper << RESET << std::endl;
         printStandInfo(standJson);
 
@@ -1162,7 +1161,7 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
 
 void generateMap(const nlohmann::ordered_json &configJson, const std::string &icao, bool openBrowser = true)
 {
-    if (!configJson.contains("STAND") || !configJson["STAND"].is_object() || configJson["STAND"].empty())
+    if (!configJson.contains("Stands") || !configJson["Stands"].is_object() || configJson["Stands"].empty())
     {
         std::cout << RED << "No stands available to visualize." << RESET << std::endl;
         return;
@@ -1181,7 +1180,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
     double totalLat = 0, totalLon = 0;
     int validStands = 0;
     
-    for (auto &[standName, standData] : configJson["STAND"].items())
+    for (auto &[standName, standData] : configJson["Stands"].items())
     {
         if (standData.contains("Coordinates"))
         {
@@ -1255,7 +1254,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 )";
 
     // Add stands to the map
-    for (auto &[standName, standData] : configJson["STAND"].items())
+    for (auto &[standName, standData] : configJson["Stands"].items())
     {
         if (standData.contains("Coordinates"))
         {
