@@ -9,7 +9,7 @@
 #include <chrono>
 #include "nlohmann/json.hpp"
 
-constexpr auto version = "v1.0.2";
+constexpr auto version = "v1.0.3";
 constexpr auto baseDir = "./configs/";
 
 // Standard colors
