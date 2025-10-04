@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 #include <regex>
+#include <chrono>
 #include "nlohmann/json.hpp"
 
 constexpr auto version = "v1.0.2";
@@ -155,6 +156,7 @@ void printMenu()
     std::cout << " softcopy <sourceStand> : copy existing stand settings but iterate through them so you can modify" << std::endl;
     std::cout << " edit <standName> : edit existing stand" << std::endl;
     std::cout << " list : list all stands" << std::endl;
+    std::cout << " map : generate HTML map visualization for debugging" << std::endl;
     std::cout << " save : save changes and exit" << std::endl;
     std::cout << " exit : exit without saving" << RESET << std::endl;
 }
@@ -1158,6 +1160,365 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
     }
 }
 
+void generateMap(const nlohmann::ordered_json &configJson, const std::string &icao, bool openBrowser = true)
+{
+    if (!configJson.contains("STAND") || !configJson["STAND"].is_object() || configJson["STAND"].empty())
+    {
+        std::cout << RED << "No stands available to visualize." << RESET << std::endl;
+        return;
+    }
+
+    std::string filename = icao + "_map.html";
+    std::ofstream htmlFile(filename);
+    
+    if (!htmlFile)
+    {
+        std::cout << RED << "Error creating HTML file." << RESET << std::endl;
+        return;
+    }
+
+    // Calculate center coordinates from all stands
+    double totalLat = 0, totalLon = 0;
+    int validStands = 0;
+    
+    for (auto &[standName, standData] : configJson["STAND"].items())
+    {
+        if (standData.contains("Coordinates"))
+        {
+            std::string coords = standData["Coordinates"];
+            size_t firstColon = coords.find(':');
+            size_t secondColon = coords.find(':', firstColon + 1);
+            if (firstColon != std::string::npos && secondColon != std::string::npos)
+            {
+                try
+                {
+                    double lat = std::stod(coords.substr(0, firstColon));
+                    double lon = std::stod(coords.substr(firstColon + 1, secondColon - firstColon - 1));
+                    totalLat += lat;
+                    totalLon += lon;
+                    validStands++;
+                }
+                catch (...) { /* Skip invalid coordinates */ }
+            }
+        }
+    }
+    
+    double centerLat = validStands > 0 ? totalLat / validStands : 0;
+    double centerLon = validStands > 0 ? totalLon / validStands : 0;
+
+    htmlFile << R"(<!DOCTYPE html>
+<html>
+<head>
+    <title>)" << icao << R"( - Airport Stands Debug Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 100vh; width: 100%; }
+        .stand-info { font-weight: bold; }
+        .legend { 
+            background: white; 
+            padding: 10px; 
+            border-radius: 5px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([)" << centerLat << ", " << centerLon << R"(], 16);
+        
+        // Add satellite tile layer
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        }).addTo(map);
+        
+        // Add OpenStreetMap overlay for airport details
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            opacity: 0.3
+        }).addTo(map);
+        
+        // Color function for different stand types
+        function getStandColor(standData) {
+            if (standData.Apron) return '#FF6B6B';  // Red for apron
+            if (standData.Schengen === false) return '#4ECDC4';  // Teal for non-Schengen
+            if (standData.Schengen === true) return '#45B7D1';   // Blue for Schengen
+            return '#96CEB4';  // Green for default
+        }
+        
+        function getStandOpacity(standData) {
+            return standData.Use ? 0.4 : 0.2;
+        }
+)";
+
+    // Add stands to the map
+    for (auto &[standName, standData] : configJson["STAND"].items())
+    {
+        if (standData.contains("Coordinates"))
+        {
+            std::string coords = standData["Coordinates"];
+            size_t firstColon = coords.find(':');
+            size_t secondColon = coords.find(':', firstColon + 1);
+            if (firstColon != std::string::npos && secondColon != std::string::npos)
+            {
+                try
+                {
+                    double lat = std::stod(coords.substr(0, firstColon));
+                    double lon = std::stod(coords.substr(firstColon + 1, secondColon - firstColon - 1));
+                    std::string radiusStr = coords.substr(secondColon + 1);
+                    double radius = radiusStr.empty() ? 20 : std::stod(radiusStr);
+                    
+                    htmlFile << "        // Stand " << standName << "\n";
+                    htmlFile << "        var stand_" << standName << " = {\n";
+                    htmlFile << "            name: '" << standName << "',\n";
+                    htmlFile << "            lat: " << lat << ",\n";
+                    htmlFile << "            lon: " << lon << ",\n";
+                    htmlFile << "            radius: " << radius << ",\n";
+                    if (standData.contains("Code"))
+                        htmlFile << "            code: '" << standData["Code"] << "',\n";
+                    if (standData.contains("Use"))
+                        htmlFile << "            use: '" << standData["Use"] << "',\n";
+                    if (standData.contains("Schengen"))
+                        htmlFile << "            Schengen: " << (standData["Schengen"].get<bool>() ? "true" : "false") << ",\n";
+                    if (standData.contains("Apron"))
+                        htmlFile << "            Apron: " << (standData["Apron"].get<bool>() ? "true" : "false") << ",\n";
+                    if (standData.contains("Priority"))
+                        htmlFile << "            Priority: " << standData["Priority"] << ",\n";
+                    htmlFile << "        };\n";
+                    
+                    htmlFile << "        var circle_" << standName << " = L.circle([" << lat << ", " << lon << "], {\n";
+                    htmlFile << "            radius: " << radius << ",\n";
+                    htmlFile << "            color: getStandColor(stand_" << standName << "),\n";
+                    htmlFile << "            fillColor: getStandColor(stand_" << standName << "),\n";
+                    htmlFile << "            fillOpacity: getStandOpacity(stand_" << standName << ")\n";
+                    htmlFile << "        }).addTo(map);\n";
+                    
+                    // Create popup content
+                    htmlFile << "        var popupContent_" << standName << " = '<div class=\"stand-info\">Stand: " << standName << "</div>';\n";
+                    if (standData.contains("Code"))
+                        htmlFile << "        popupContent_" << standName << " += '<br>Code: " << standData["Code"] << "';\n";
+                    if (standData.contains("Use"))
+                        htmlFile << "        popupContent_" << standName << " += '<br>Use: " << standData["Use"] << "';\n";
+                    if (standData.contains("Schengen"))
+                        htmlFile << "        popupContent_" << standName << " += '<br>Schengen: " << (standData["Schengen"].get<bool>() ? "Yes" : "No") << "';\n";
+                    if (standData.contains("Apron"))
+                        htmlFile << "        popupContent_" << standName << " += '<br>Apron: " << (standData["Apron"].get<bool>() ? "Yes" : "No") << "';\n";
+                    if (standData.contains("Priority"))
+                        htmlFile << "        popupContent_" << standName << " += '<br>Priority: " << standData["Priority"] << "';\n";
+                    htmlFile << "        popupContent_" << standName << " += '<br>Radius: " << radius << "m';\n";
+                    htmlFile << "        popupContent_" << standName << " += '<br>Coordinates: " << coords << "';\n";
+                    
+                    // Add arrays if they exist
+                    if (standData.contains("Callsigns") && standData["Callsigns"].is_array())
+                    {
+                        htmlFile << "        popupContent_" << standName << " += '<br>Callsigns: ";
+                        for (auto it = standData["Callsigns"].begin(); it != standData["Callsigns"].end(); ++it)
+                        {
+                            if (it != standData["Callsigns"].begin()) htmlFile << ", ";
+                            htmlFile << *it;
+                        }
+                        htmlFile << "';\n";
+                    }
+                    
+                    if (standData.contains("Countries") && standData["Countries"].is_array())
+                    {
+                        htmlFile << "        popupContent_" << standName << " += '<br>Countries: ";
+                        for (auto it = standData["Countries"].begin(); it != standData["Countries"].end(); ++it)
+                        {
+                            if (it != standData["Countries"].begin()) htmlFile << ", ";
+                            htmlFile << *it;
+                        }
+                        htmlFile << "';\n";
+                    }
+                    
+                    if (standData.contains("Block") && standData["Block"].is_array())
+                    {
+                        htmlFile << "        popupContent_" << standName << " += '<br>Blocked: ";
+                        for (auto it = standData["Block"].begin(); it != standData["Block"].end(); ++it)
+                        {
+                            if (it != standData["Block"].begin()) htmlFile << ", ";
+                            htmlFile << *it;
+                        }
+                        htmlFile << "';\n";
+                    }
+                    
+                    htmlFile << "        circle_" << standName << ".bindPopup(popupContent_" << standName << ");\n";
+                    
+                    // Add stand label
+                    htmlFile << "        var marker_" << standName << " = L.marker([" << lat << ", " << lon << "], {\n";
+                    htmlFile << "            icon: L.divIcon({\n";
+                    htmlFile << "                className: 'stand-label',\n";
+                    htmlFile << "                html: '<div style=\"background-color: rgba(255,255,255,0.8); padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 12px; color: black;\">" << standName << "</div>',\n";
+                    htmlFile << "                iconSize: [40, 20],\n";
+                    htmlFile << "                iconAnchor: [20, 10]\n";
+                    htmlFile << "            })\n";
+                    htmlFile << "        }).addTo(map);\n\n";
+                }
+                catch (...)
+                {
+                    std::cout << YELLOW << "Warning: Invalid coordinates for stand " << standName << RESET << std::endl;
+                }
+            }
+        }
+    }
+
+    htmlFile << R"(        
+        // Add legend
+        var legend = L.control({position: 'topright'});
+        legend.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'legend');
+            div.innerHTML = '<h4>)" << icao << R"( Stands Legend</h4>' +
+                '<i style="background:#96CEB4; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Default<br>' +
+                '<i style="background:#45B7D1; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Schengen<br>' +
+                '<i style="background:#4ECDC4; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Non-Schengen<br>' +
+                '<i style="background:#FF6B6B; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Apron<br><br>' +
+                '<small>Click circles for details</small>';
+            return div;
+        };
+        legend.addTo(map);
+        
+        // Add layer control
+        var baseMaps = {
+            "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+        };
+        L.control.layers(baseMaps).addTo(map);
+        
+        // Auto-refresh functionality
+        let lastModified = document.lastModified;
+        let refreshCheckInterval = 1000; // Check every second
+        let isRefreshing = false;
+        
+        // Add refresh indicator
+        var refreshIndicator = L.control({position: 'bottomright'});
+        refreshIndicator.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'refresh-indicator');
+            div.innerHTML = '<div id="refresh-status" style="background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 3px; font-size: 12px; display: none;">🔄 Auto-refresh enabled</div>';
+            return div;
+        };
+        refreshIndicator.addTo(map);
+        
+        function checkForUpdates() {
+            if (isRefreshing) return;
+            
+            fetch(window.location.href, {
+                method: 'HEAD',
+                cache: 'no-cache'
+            })
+            .then(response => {
+                const currentModified = response.headers.get('last-modified');
+                if (currentModified && currentModified !== lastModified) {
+                    isRefreshing = true;
+                    const statusDiv = document.getElementById('refresh-status');
+                    statusDiv.style.display = 'block';
+                    statusDiv.innerHTML = '🔄 Updating map...';
+                    statusDiv.style.background = 'rgba(0,128,0,0.7)';
+                    
+                    // Small delay to show the status
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                }
+            })
+            .catch(error => {
+                // Fallback: try to detect changes by reloading and comparing content
+                // This works better for file:// URLs
+                setTimeout(() => {
+                    if (!isRefreshing) {
+                        const iframe = document.createElement('iframe');
+                        iframe.style.display = 'none';
+                        iframe.onload = function() {
+                            try {
+                                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                                const currentContent = iframeDoc.documentElement.outerHTML;
+                                const thisContent = document.documentElement.outerHTML;
+                                
+                                // Compare a signature of the content (stand data)
+                                const currentStandCount = (currentContent.match(/Stand:/g) || []).length;
+                                const thisStandCount = (thisContent.match(/Stand:/g) || []).length;
+                                
+                                if (currentStandCount !== thisStandCount) {
+                                    isRefreshing = true;
+                                    const statusDiv = document.getElementById('refresh-status');
+                                    statusDiv.style.display = 'block';
+                                    statusDiv.innerHTML = '🔄 Updating map...';
+                                    statusDiv.style.background = 'rgba(0,128,0,0.7)';
+                                    
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 500);
+                                }
+                            } catch (e) {
+                                // Cross-origin or other access issues - ignore
+                            }
+                            document.body.removeChild(iframe);
+                        };
+                        iframe.src = window.location.href + '?t=' + Date.now();
+                        document.body.appendChild(iframe);
+                    }
+                }, 100);
+            });
+        }
+        
+        // Show auto-refresh status briefly on load
+        setTimeout(() => {
+            const statusDiv = document.getElementById('refresh-status');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '🔄 Auto-refresh enabled';
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }, 1000);
+        
+        // Start monitoring for changes
+        setInterval(checkForUpdates, refreshCheckInterval);
+        
+        // Also check when window regains focus
+        window.addEventListener('focus', checkForUpdates);
+    </script>
+</body>
+</html>)";
+
+// Generate a timestamp comment to help detect file changes
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    htmlFile << "<!-- Generated: " << timestamp << " -->";
+
+    htmlFile.close();
+    
+    std::cout << GREEN << "HTML map generated: " << filename << RESET << std::endl;
+    // Open the file in the default web browser only if requested
+    if (openBrowser)
+    {
+        std::string openCommand;
+#ifdef _WIN32
+        openCommand = "start " + filename;
+#endif
+#ifdef __APPLE__
+        openCommand = "open " + filename;
+#endif
+#ifdef __linux__
+        openCommand = "xdg-open " + filename;
+#endif
+        if (!openCommand.empty())
+        {
+            std::system(openCommand.c_str());
+            std::cout << CYAN << "Map opened in your default web browser." << RESET << std::endl;
+        }
+        else
+        {
+            std::cout << YELLOW << "Please open the file manually in your web browser." << RESET << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << GREY << "Map updated. Refresh your browser to see the changes." << RESET << std::endl;
+    }
+}
+
 int main()
 {
     std::cout << "Config Creator " + std::string(version) << std::endl;
@@ -1178,6 +1539,8 @@ int main()
     std::cout << "JSON edition ready." << std::endl;
     printMenu();
 
+    // Track if map has been generated to auto-update on save
+    bool mapGenerated = false;
     std::string command;
     while (true)
     {
@@ -1192,35 +1555,71 @@ int main()
         else if (command == "save")
         {
             saveFile(icao, configJson);
+            // Auto-regenerate map if it was previously generated
+            if (mapGenerated)
+            {
+                std::cout << CYAN << "Updating map visualization..." << RESET << std::endl;
+                generateMap(configJson, icao, false); // Don't open browser on updates
+            }
         }
         else if (command == "list")
         {
             listAllStands(configJson);
         }
+        else if (command == "map")
+        {
+            generateMap(configJson, icao, true); // Open browser on first generation
+            mapGenerated = true;
+        }
         else if (command.rfind("add ", 0) == 0)
         {
             std::string standName = command.substr(4);
             addStand(configJson, standName);
+            // Auto-update map if it was previously generated
+            if (mapGenerated)
+            {
+                generateMap(configJson, icao, false);
+            }
         }
         else if (command.rfind("remove ", 0) == 0)
         {
             std::string standName = command.substr(7);
             removeStand(configJson, standName);
+            // Auto-update map if it was previously generated
+            if (mapGenerated)
+            {
+                generateMap(configJson, icao, false);
+            }
         }
         else if (command.rfind("copy ", 0) == 0)
         {
             std::string standName = command.substr(5);
             copyStand(configJson, standName);
+            // Auto-update map if it was previously generated
+            if (mapGenerated)
+            {
+                generateMap(configJson, icao, false);
+            }
         }
         else if (command.rfind("softcopy ", 0) == 0)
         {
             std::string standName = command.substr(9);
             softStandCopy(configJson, standName);
+            // Auto-update map if it was previously generated
+            if (mapGenerated)
+            {
+                generateMap(configJson, icao, false);
+            }
         }
         else if (command.rfind("edit ", 0) == 0)
         {
             std::string standName = command.substr(5);
             editStand(configJson, standName);
+            // Auto-update map if it was previously generated
+            if (mapGenerated)
+            {
+                generateMap(configJson, icao, false);
+            }
         }
         else if (command == "help")
         {
