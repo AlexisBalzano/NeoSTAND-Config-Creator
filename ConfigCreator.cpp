@@ -1346,14 +1346,18 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                     }
                     
                     htmlFile << "        circle_" << standName << ".bindPopup(popupContent_" << standName << ");\n";
-                    
+
+                    // Calculate width based on stand name length
+                    int labelWidth = std::max(30, static_cast<int>(standName.length()) * 8);
+
+
                     // Add stand label
                     htmlFile << "        var marker_" << standName << " = L.marker([" << lat << ", " << lon << "], {\n";
                     htmlFile << "            icon: L.divIcon({\n";
                     htmlFile << "                className: 'stand-label',\n";
-                    htmlFile << "                html: '<div style=\"background-color: rgba(255,255,255,0.8); padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 12px; color: black;\">" << standName << "</div>',\n";
-                    htmlFile << "                iconSize: [40, 20],\n";
-                    htmlFile << "                iconAnchor: [20, 10]\n";
+                    htmlFile << "                html: '<div style=\"background-color: rgba(255,255,255,0.8); padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 12px; color: black; text-align: center; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; box-sizing: border-box;\">" << standName << "</div>',\n";
+                    htmlFile << "                iconSize: [" << labelWidth << ", 20],\n";
+                    htmlFile << "                iconAnchor: [" << labelWidth / 2 << ", 10]\n";
                     htmlFile << "            })\n";
                     htmlFile << "        }).addTo(map);\n\n";
                 }
@@ -1386,98 +1390,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
         };
         L.control.layers(baseMaps).addTo(map);
-        
-        // Auto-refresh functionality
-        let lastModified = document.lastModified;
-        let refreshCheckInterval = 1000; // Check every second
-        let isRefreshing = false;
-        
-        // Add refresh indicator
-        var refreshIndicator = L.control({position: 'bottomright'});
-        refreshIndicator.onAdd = function (map) {
-            var div = L.DomUtil.create('div', 'refresh-indicator');
-            div.innerHTML = '<div id="refresh-status" style="background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 3px; font-size: 12px; display: none;">🔄 Auto-refresh enabled</div>';
-            return div;
-        };
-        refreshIndicator.addTo(map);
-        
-        function checkForUpdates() {
-            if (isRefreshing) return;
-            
-            fetch(window.location.href, {
-                method: 'HEAD',
-                cache: 'no-cache'
-            })
-            .then(response => {
-                const currentModified = response.headers.get('last-modified');
-                if (currentModified && currentModified !== lastModified) {
-                    isRefreshing = true;
-                    const statusDiv = document.getElementById('refresh-status');
-                    statusDiv.style.display = 'block';
-                    statusDiv.innerHTML = '🔄 Updating map...';
-                    statusDiv.style.background = 'rgba(0,128,0,0.7)';
-                    
-                    // Small delay to show the status
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 500);
-                }
-            })
-            .catch(error => {
-                // Fallback: try to detect changes by reloading and comparing content
-                // This works better for file:// URLs
-                setTimeout(() => {
-                    if (!isRefreshing) {
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.onload = function() {
-                            try {
-                                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                                const currentContent = iframeDoc.documentElement.outerHTML;
-                                const thisContent = document.documentElement.outerHTML;
-                                
-                                // Compare a signature of the content (stand data)
-                                const currentStandCount = (currentContent.match(/Stand:/g) || []).length;
-                                const thisStandCount = (thisContent.match(/Stand:/g) || []).length;
-                                
-                                if (currentStandCount !== thisStandCount) {
-                                    isRefreshing = true;
-                                    const statusDiv = document.getElementById('refresh-status');
-                                    statusDiv.style.display = 'block';
-                                    statusDiv.innerHTML = '🔄 Updating map...';
-                                    statusDiv.style.background = 'rgba(0,128,0,0.7)';
-                                    
-                                    setTimeout(() => {
-                                        window.location.reload();
-                                    }, 500);
-                                }
-                            } catch (e) {
-                                // Cross-origin or other access issues - ignore
-                            }
-                            document.body.removeChild(iframe);
-                        };
-                        iframe.src = window.location.href + '?t=' + Date.now();
-                        document.body.appendChild(iframe);
-                    }
-                }, 100);
-            });
-        }
-        
-        // Show auto-refresh status briefly on load
-        setTimeout(() => {
-            const statusDiv = document.getElementById('refresh-status');
-            statusDiv.style.display = 'block';
-            statusDiv.innerHTML = '🔄 Auto-refresh enabled';
-            setTimeout(() => {
-                statusDiv.style.display = 'none';
-            }, 3000);
-        }, 1000);
-        
-        // Start monitoring for changes
-        setInterval(checkForUpdates, refreshCheckInterval);
-        
-        // Also check when window regains focus
-        window.addEventListener('focus', checkForUpdates);
+
     </script>
 </body>
 </html>)";
