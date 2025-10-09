@@ -39,6 +39,9 @@ constexpr auto baseDir = "./configs/";
 #define UNDERLINE "\033[4m"
 #define REVERSED "\033[7m"
 
+bool isCoordinatesValid(std::string &coordinates);
+
+
 std::vector<std::string> splitString(const std::string &str)
 {
     std::vector<std::string> result;
@@ -104,9 +107,27 @@ bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson)
 
     if (configJson.empty())
     {
+        std::string coordinates;
+        std::cout << "Enter airport coordinates (format: lat:lon:radius): ";
+        while (true)
+        {
+            std::getline(std::cin, coordinates);
+            if (!isCoordinatesValid(coordinates))
+            {
+                std::cout << RED << "Invalid coordinates format. Please use lat:lon:radius (e.g., 43.666359:7.216941:20)." << RESET << std::endl;
+                std::cout << "Enter airport coordinates (format: lat:lon:radius): ";
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+
         // Create default config
         configJson = {
             {"ICAO", icao},
+            {"Coordinates", coordinates},
             {"Stands", {}}};
         std::cout << "Created default config structure." << std::endl;
     }
