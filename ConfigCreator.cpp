@@ -237,6 +237,7 @@ void printMenu()
     std::cout << " list : list all stands" << std::endl;
     std::cout << " map : generate HTML map visualization for debugging" << std::endl;
     std::cout << " save : save changes and exit" << std::endl;
+    std::cout << " config : select another config (will not save current changes)" << std::endl;
     std::cout << " exit : exit without saving" << RESET << std::endl;
 }
 
@@ -1603,28 +1604,34 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
     }
 }
 
-int main()
-{
-    std::cout << "Config Creator " + std::string(version) << std::endl;
-
-    std::string icao;
+int init(nlohmann::ordered_json &configJson, bool& mapGenerated, std::string &icao) {
+    mapGenerated = false;
     std::cout << "Select config file (ICAO, if not found, new one is created): ";
     std::getline(std::cin, icao);
     std::transform(icao.begin(), icao.end(), icao.begin(), ::toupper);
 
-    nlohmann::ordered_json configJson;
 
     if (!getConfig(icao, configJson))
     {
         return 1;
     }
-
+    
     // Ready to edit the JSON
     std::cout << "JSON edition ready." << std::endl;
     printMenu();
+    return 0;
+}
+
+int main()
+{
+    bool mapGenerated = false;
+    nlohmann::ordered_json configJson;
+    std::string icao;
+     if (init(configJson, mapGenerated, icao) == 1) {
+        return 1;
+    }
 
     // Track if map has been generated to auto-update on save
-    bool mapGenerated = false;
     std::string command;
     while (true)
     {
@@ -1703,6 +1710,12 @@ int main()
             if (mapGenerated)
             {
                 generateMap(configJson, icao, false);
+            }
+        }
+        else if (command == "config")
+        {
+            if (init(configJson, mapGenerated, icao) == 1) {
+                return 1;
             }
         }
         else if (command == "help")
