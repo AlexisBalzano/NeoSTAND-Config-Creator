@@ -9,7 +9,7 @@
 #include <chrono>
 #include "nlohmann/json.hpp"
 
-constexpr auto version = "v1.0.3";
+constexpr auto version = "v1.0.4";
 constexpr auto baseDir = "./configs/";
 
 // Standard colors
@@ -135,6 +135,64 @@ bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson)
     return true;
 }
 
+std::vector<std::pair<std::string, std::string>> parseStandName(const std::string& standName) {
+    std::vector<std::pair<std::string, std::string>> parts;
+    std::string current = "";
+    bool isNumber = false;
+    
+    for (char c : standName) {
+        bool currentIsDigit = std::isdigit(c);
+        
+        if (currentIsDigit != isNumber && !current.empty()) {
+            parts.push_back({current, isNumber ? "number" : "text"});
+            current = "";
+        }
+        
+        current += c;
+        isNumber = currentIsDigit;
+    }
+    
+    if (!current.empty()) {
+        parts.push_back({current, isNumber ? "number" : "text"});
+    }
+    
+    return parts;
+}
+
+bool naturalSort(const std::string& a, const std::string& b) {
+    auto partsA = parseStandName(a);
+    auto partsB = parseStandName(b);
+    
+    size_t minSize = std::min(partsA.size(), partsB.size());
+    
+    for (size_t i = 0; i < minSize; ++i) {
+        const auto& partA = partsA[i];
+        const auto& partB = partsB[i];
+        
+        // If both are numbers, compare numerically
+        if (partA.second == "number" && partB.second == "number") {
+            int numA = std::stoi(partA.first);
+            int numB = std::stoi(partB.first);
+            if (numA != numB) {
+                return numA < numB;
+            }
+        }
+        // If both are text, compare lexicographically
+        else if (partA.second == "text" && partB.second == "text") {
+            if (partA.first != partB.first) {
+                return partA.first < partB.first;
+            }
+        }
+        // If types differ, numbers come before text
+        else {
+            return partA.second == "number" && partB.second == "text";
+        }
+    }
+    
+    // If all compared parts are equal, shorter string comes first
+    return partsA.size() < partsB.size();
+}
+
 void saveFile(const std::string &icao, const nlohmann::ordered_json &configJson)
 {
     std::ofstream outputFile(baseDir + icao + ".json");
@@ -148,7 +206,8 @@ void saveFile(const std::string &icao, const nlohmann::ordered_json &configJson)
             {
                 standKeys.push_back(key);
             }
-            std::sort(standKeys.begin(), standKeys.end());
+            // Use natural sort instead of standard sort
+            std::sort(standKeys.begin(), standKeys.end(), naturalSort);
             for (const auto &key : standKeys)
             {
                 sortedStands[key] = configJson["Stands"][key];
