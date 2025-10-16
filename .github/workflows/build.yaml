@@ -14,11 +14,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            artifact_name: neostand-configurator-linux-x64
-            asset_name: neostand-configurator-linux-x64
-            build_command: g++ -std=c++17 -O2 -I. ConfigCreator.cpp -o ConfigCreator
-            executable: ConfigCreator
           - os: windows-latest
             artifact_name: neostand-configurator-windows-x64
             asset_name: neostand-configurator-windows-x64
