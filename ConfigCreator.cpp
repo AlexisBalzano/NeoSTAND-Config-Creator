@@ -9,6 +9,15 @@
 #include <chrono>
 #include "nlohmann/json.hpp"
 
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <unistd.h>
+    #ifdef __APPLE__
+        #include <mach-o/dyld.h>
+    #endif
+#endif
+
 constexpr auto version = "v1.0.4";
 
 // Standard colors
@@ -58,8 +67,35 @@ std::vector<std::string> splitString(const std::string &str)
     return result;
 }
 
+std::string getExecutableDir() {
+#ifdef _WIN32
+    char buffer[MAX_PATH];
+    GetModuleFileNameA(NULL, buffer, MAX_PATH);
+    std::string executablePath = buffer;
+    size_t pos = executablePath.find_last_of("\\/");
+    return (pos == std::string::npos) ? "" : executablePath.substr(0, pos + 1);
+#else
+    char buffer[1024];
+    ssize_t count = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if (count == -1) {
+        // Fallback for macOS
+        uint32_t size = sizeof(buffer);
+        if (_NSGetExecutablePath(buffer, &size) != 0) {
+            return "./"; // Fallback to current directory
+        }
+    } else {
+        buffer[count] = '\0';
+    }
+    std::string executablePath = buffer;
+    size_t pos = executablePath.find_last_of('/');
+    return (pos == std::string::npos) ? "./" : executablePath.substr(0, pos + 1);
+#endif
+}
+
+// Update the getBaseDir function
 std::string getBaseDir() {
-    return (std::filesystem::current_path() / "configs").string() + "/";
+    std::string execDir = getExecutableDir();
+    return execDir + "configs/";
 }
 
 bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson)
