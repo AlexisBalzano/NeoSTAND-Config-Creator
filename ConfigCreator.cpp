@@ -10,7 +10,6 @@
 #include "nlohmann/json.hpp"
 
 constexpr auto version = "v1.0.4";
-constexpr auto baseDir = "./configs/";
 
 // Standard colors
 #define RESET "\033[0m"
@@ -59,8 +58,15 @@ std::vector<std::string> splitString(const std::string &str)
     return result;
 }
 
+std::string getBaseDir() {
+    return (std::filesystem::current_path() / "configs").string() + "/";
+}
+
 bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson)
 {
+    std::string baseDir = getBaseDir();
+    std::cout << "Config directory path: " << baseDir << std::endl;
+    
     bool dirExists = std::filesystem::exists(baseDir);
     if (!dirExists)
     {
@@ -195,6 +201,7 @@ bool naturalSort(const std::string& a, const std::string& b) {
 
 void saveFile(const std::string &icao, const nlohmann::ordered_json &configJson)
 {
+    std::string baseDir = getBaseDir();
     std::ofstream outputFile(baseDir + icao + ".json");
     if (outputFile)
     {
