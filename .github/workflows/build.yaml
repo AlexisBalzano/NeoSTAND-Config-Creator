@@ -13,14 +13,27 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
         include:
           - os: ubuntu-latest
-            artifact_name: neostand-configurator-linux
+            artifact_name: neostand-configurator-linux-x64
             asset_name: neostand-configurator-linux-x64
+            build_command: g++ -std=c++17 -O2 -I. ConfigCreator.cpp -o ConfigCreator
+            executable: ConfigCreator
+          - os: windows-latest
+            artifact_name: neostand-configurator-windows-x64
+            asset_name: neostand-configurator-windows-x64
+            build_command: g++ -std=c++17 -O2 -I. ConfigCreator.cpp -o ConfigCreator.exe
+            executable: ConfigCreator.exe
           - os: macos-latest
-            artifact_name: neostand-configurator-macos
+            artifact_name: neostand-configurator-macos-arm64
+            asset_name: neostand-configurator-macos-arm64
+            build_command: g++ -std=c++17 -O2 -I. -target arm64-apple-macos11 ConfigCreator.cpp -o ConfigCreator
+            executable: ConfigCreator
+          - os: macos-13
+            artifact_name: neostand-configurator-macos-x64
             asset_name: neostand-configurator-macos-x64
+            build_command: g++ -std=c++17 -O2 -I. -target x86_64-apple-macos10.15 ConfigCreator.cpp -o ConfigCreator
+            executable: ConfigCreator
 
     steps:
     - uses: actions/checkout@v4
@@ -31,33 +44,60 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential
 
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-curl
+
     - name: Install Xcode Command Line Tools (macOS)
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: |
         xcode-select --install || true
 
-    - name: Download nlohmann/json header
+    - name: Download nlohmann/json header (Linux/macOS)
+      if: matrix.os != 'windows-latest'
       run: |
         mkdir -p nlohmann
         curl -o nlohmann/json.hpp https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp
 
-    - name: Build (Linux)
-      if: matrix.os == 'ubuntu-latest'
+    - name: Download nlohmann/json header (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
       run: |
-        g++ -std=c++17 -O2 -I. ConfigCreator.cpp -o ConfigCreator
+        mkdir -p nlohmann
+        curl -o nlohmann/json.hpp https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp
 
-    - name: Build (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        g++ -std=c++17 -O2 -I. ConfigCreator.cpp -o ConfigCreator
+    - name: Build (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: ${{ matrix.build_command }}
+
+    - name: Build (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
+      run: ${{ matrix.build_command }}
 
     - name: Create configs directory
       run: mkdir -p configs
 
-    - name: Package artifacts
+    - name: Package artifacts (Linux/macOS)
+      if: matrix.os != 'windows-latest'
       run: |
         mkdir -p release
-        cp ConfigCreator release/
+        cp ${{ matrix.executable }} release/
+        cp -r configs release/
+        tar -czf ${{ matrix.artifact_name }}.tar.gz -C release .
+
+    - name: Package artifacts (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
+      run: |
+        mkdir -p release
+        cp ${{ matrix.executable }} release/
         cp -r configs release/
         tar -czf ${{ matrix.artifact_name }}.tar.gz -C release .
 
