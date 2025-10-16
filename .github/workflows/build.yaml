@@ -1,0 +1,79 @@
+name: Build NeoSTAND Configurator
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: neostand-configurator-linux
+            asset_name: neostand-configurator-linux-x64
+          - os: macos-latest
+            artifact_name: neostand-configurator-macos
+            asset_name: neostand-configurator-macos-x64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+
+    - name: Install Xcode Command Line Tools (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        xcode-select --install || true
+
+    - name: Download nlohmann/json header
+      run: |
+        mkdir -p nlohmann
+        curl -o nlohmann/json.hpp https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp
+
+    - name: Build (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        g++ -std=c++17 -O2 -I. ConfigCreator.cpp -o ConfigCreator
+
+    - name: Build (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        g++ -std=c++17 -O2 -I. ConfigCreator.cpp -o ConfigCreator
+
+    - name: Create configs directory
+      run: mkdir -p configs
+
+    - name: Package artifacts
+      run: |
+        mkdir -p release
+        cp ConfigCreator release/
+        cp -r configs release/
+        tar -czf ${{ matrix.artifact_name }}.tar.gz -C release .
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_name }}.tar.gz
+
+    - name: Upload to release
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ matrix.artifact_name }}.tar.gz
+        asset_name: ${{ matrix.asset_name }}.tar.gz
+        asset_content_type: application/gzip
