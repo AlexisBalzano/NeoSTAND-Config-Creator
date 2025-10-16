@@ -1291,7 +1291,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         return;
     }
 
-    std::string filename = icao + "_map.html";
+    std::string filename = getBaseDir() + icao + "_map.html";
     std::ofstream htmlFile(filename);
     
     if (!htmlFile)
