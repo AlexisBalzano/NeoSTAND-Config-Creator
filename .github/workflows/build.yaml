@@ -37,7 +37,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential
+        sudo apt-get install -y build-essential zip
 
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
@@ -53,6 +53,7 @@ jobs:
       if: startsWith(matrix.os, 'macos')
       run: |
         xcode-select --install || true
+        brew install zip || true
 
     - name: Download nlohmann/json header (Linux/macOS)
       if: matrix.os != 'windows-latest'
@@ -91,14 +92,16 @@ jobs:
 
     - name: Package artifacts (Windows)
       if: matrix.os == 'windows-latest'
-      shell: msys2 {0}
       run: |
         mkdir -p release
         cp ${{ matrix.executable }} release/
         cp -r configs release/
-        cd release
-        zip -r ../${{ matrix.artifact_name }}.zip ./*
-        cd ..
+      shell: pwsh
+    - name: Create zip on Windows (PowerShell)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        Compress-Archive -Path release\* -DestinationPath $env:GITHUB_WORKSPACE\${{ matrix.artifact_name }}.zip -Force
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
