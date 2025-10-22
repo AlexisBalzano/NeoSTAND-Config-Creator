@@ -12,9 +12,11 @@ Helper CLI to create Ramp Agent config files
 - `softcopy <sourceStand>` : copy existing stand settings but iterate through them so you can modify
 - `edit <standName>` : edit existing stand
 - `list` : list all stands
-- `map` : generate HTML map visualization for debugging
+- !`map` : generate HTML map visualization for debugging
 - `save` : save changes and exit
 - `exit` : exit without saving
+
+**!** Python required for the map visualisation
 
 ## Debug Map Visualization
 
@@ -31,18 +33,23 @@ The `map` command generates an interactive HTML map that visualizes all stands w
 - **Detailed popups** with all stand information (code, use, priority, callsigns, countries, blocked stands, etc.)
 - **Stand labels** for easy identification
 - **Legend** and layer controls
-- **Seamless updates** - Once a map is generated, it automatically updates when you:
-  - Add new stands (`add`)
-  - Edit existing stands (`edit`)
-  - Remove stands (`remove`)
-  - Copy stands (`copy` or `softcopy`)
-  - Save changes (`save`)
+- **🔄 Live Reload Server** - Automatic browser refresh when files change:
+  - Starts a local server at `http://localhost:3000`
+  - Real-time updates without manual refresh
+  - Works when you add, edit, remove, or copy stands
+  - Smart file monitoring with WebSocket-like updates
 
 ### Usage:
-1. Run the `map` command once to generate and open the map in your browser
-2. Make any changes to your stands using other commands
-3. The map will automatically update in the background
-4. Simply refresh your browser tab to see the latest changes
-5. When you `save`, the map is also updated to reflect the final state
+1. Run the `map` command once to generate the map and start the live reload server
+2. The map opens automatically at `http://localhost:3000/[ICAO]_map.html`
+3. Make any changes to your stands using other commands
+4. **The map automatically refreshes in your browser** when changes are detected
+5. No need to manually refresh - changes appear instantly!
 
 The generated HTML file (`{ICAO}_map.html`) can be opened in any web browser and requires an internet connection to load the map tiles.
+
+### Live Reload Requirements:
+- **Python 3.x** must be installed and available in PATH
+- The live reload server automatically starts when you use the `map` command
+- Server runs on `localhost:3000` (automatically finds available port)
+- The server stops when you `save` or `exit` the application
