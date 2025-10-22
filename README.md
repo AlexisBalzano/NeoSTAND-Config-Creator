@@ -1,6 +1,7 @@
 # Ramp Agent Config Creator
 Helper CLI to create Ramp Agent config files
-<img width="929" height="321" alt="image" src="https://github.com/user-attachments/assets/c8f27f78-722d-48a9-8bb5-37515cab1742" />
+<img width="924" height="683" alt="image" src="https://github.com/user-attachments/assets/bfc6feb9-e2ab-40f4-84f8-999b3268d156" />
+
 <img width="826" height="728" alt="image" src="https://github.com/user-attachments/assets/0a8490a4-ea9a-4720-8333-123229f02620" />
 
 ## List of available commands
