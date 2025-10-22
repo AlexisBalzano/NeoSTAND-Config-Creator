@@ -8,6 +8,7 @@ Helper app for creating NeoSTAND configs
 - `add <standName>` : add new stand
 - `remove <standName>` : remove existing stand
 - `copy <sourceStand>` : copy existing stand settings
+- `batchcopy <sourceStand>` : copy existing stand settings to a list of stand + coordinates
 - `softcopy <sourceStand>` : copy existing stand settings but iterate through them so you can modify
 - `edit <standName>` : edit existing stand
 - `list` : list all stands

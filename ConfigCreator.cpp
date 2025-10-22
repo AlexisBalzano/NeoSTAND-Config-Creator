@@ -275,6 +275,7 @@ void printMenu()
     std::cout << " add <standName> : add new stand" << std::endl;
     std::cout << " remove <standName> : remove existing stand" << std::endl;
     std::cout << " copy <sourceStand> : copy existing stand settings" << std::endl;
+    std::cout << " batchcopy <sourceStand> : copy existing stand settings to stand list provided" << std::endl;
     std::cout << " softcopy <sourceStand> : copy existing stand settings but iterate through them so you can modify" << std::endl;
     std::cout << " edit <standName> : edit existing stand" << std::endl;
     std::cout << " list : list all stands" << std::endl;
@@ -965,6 +966,92 @@ void copyStand(nlohmann::ordered_json &configJson, const std::string &standName)
     else
     {
         std::cout << RED << "Stand " << standNameUpper << " does not exist." << RESET << std::endl;
+    }
+}
+
+void batchcopy(nlohmann::ordered_json &configJson, const std::string &standName) {
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    
+    if (!configJson.contains("Stands") || !configJson["Stands"].is_object() || !configJson["Stands"].contains(standNameUpper))
+    {
+        std::cout << RED << "Stand " << standNameUpper << " does not exist." << RESET << std::endl;
+        return;
+    }
+
+    std::cout << GREEN << "Batch copying from stand: " << standNameUpper << RESET << std::endl;
+    printStandInfo(configJson["Stands"][standNameUpper]);
+    std::cout << std::endl;
+    
+    std::cout << "Enter new stand entries (format: name:lat:lon:radius)" << std::endl;
+    std::cout << "Example: A1:43.666359:7.216941:20" << std::endl;
+    std::cout << "Press Enter on empty line to finish:" << std::endl;
+    
+    int copiedCount = 0;
+    std::string line;
+    
+    while (true)
+    {
+        std::cout << "> ";
+        std::getline(std::cin, line);
+        
+        if (line.empty()) {
+            break; // Exit on empty line
+        }
+        
+        // Parse the line format: name:lat:lon:radius
+        std::vector<std::string> parts;
+        std::istringstream stream(line);
+        std::string part;
+        
+        while (std::getline(stream, part, ':')) {
+            parts.push_back(part);
+        }
+        
+        if (parts.size() != 4) {
+            std::cout << RED << "Invalid format. Expected: name:lat:lon:radius" << RESET << std::endl;
+            continue;
+        }
+        
+        std::string newStandName = parts[0];
+        std::string coordinates = parts[1] + ":" + parts[2] + ":" + parts[3];
+        
+        // Convert stand name to uppercase
+        std::transform(newStandName.begin(), newStandName.end(), newStandName.begin(), ::toupper);
+        
+        // Check if stand already exists
+        if (configJson["Stands"].contains(newStandName))
+        {
+            std::cout << RED << "Stand " << newStandName << " already exists. Skipping." << RESET << std::endl;
+            continue;
+        }
+        
+        // Validate coordinates
+        std::string coordsCopy = coordinates; // Make a copy since isCoordinatesValid modifies it
+        if (!isCoordinatesValid(coordsCopy))
+        {
+            std::cout << RED << "Invalid coordinates format for " << newStandName << ": " << coordinates << RESET << std::endl;
+            std::cout << "Expected format: lat:lon:radius (e.g., 43.666359:7.216941:20)" << std::endl;
+            continue;
+        }
+        
+        // Copy stand settings from source
+        configJson["Stands"][newStandName] = configJson["Stands"][standNameUpper];
+        
+        // Update with new coordinates
+        configJson["Stands"][newStandName]["Coordinates"] = coordsCopy;
+        
+        std::cout << GREEN << "✓ Created " << newStandName << " at " << coordsCopy << RESET << std::endl;
+        copiedCount++;
+    }
+    
+    if (copiedCount > 0)
+    {
+        std::cout << std::endl << GREEN << "Batch copy completed! Created " << copiedCount << " new stands based on " << standNameUpper << "." << RESET << std::endl;
+    }
+    else
+    {
+        std::cout << YELLOW << "No stands were created." << RESET << std::endl;
     }
 }
 
@@ -1838,6 +1925,16 @@ int main()
         {
             std::string standName = command.substr(5);
             copyStand(configJson, standName);
+            // Auto-update map if it was previously generated
+            if (mapGenerated)
+            {
+                generateMap(configJson, icao, false);
+            }
+        }
+        else if (command.rfind("batchcopy ", 0) == 0)
+        {
+            std::string standName = command.substr(10);
+            batchcopy(configJson, standName);
             // Auto-update map if it was previously generated
             if (mapGenerated)
             {
