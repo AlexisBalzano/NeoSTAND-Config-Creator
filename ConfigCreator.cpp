@@ -1368,6 +1368,9 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             maxZoom: 19  // OSM has lower max zoom
         }).addTo(map);
         
+        // Store references to current stands for cleanup
+        var currentStandElements = [];
+        
         // Color function for different stand types
         function getStandColor(standData) {
             if (standData.Apron) return '#FF6B6B';  // Red for apron
@@ -1422,6 +1425,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                     htmlFile << "            fillColor: getStandColor(stand_" << standName << "),\n";
                     htmlFile << "            fillOpacity: getStandOpacity(stand_" << standName << ")\n";
                     htmlFile << "        }).addTo(map);\n";
+                    htmlFile << "        currentStandElements.push(circle_" << standName << ");\n";
                     
                     // Create popup content
                     htmlFile << "        var popupContent_" << standName << " = '<div class=\"stand-info\">Stand: " << standName << "</div>';\n";
@@ -1511,7 +1515,8 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                     htmlFile << "                iconSize: [" << labelWidth << ", 20],\n";
                     htmlFile << "                iconAnchor: [" << labelWidth / 2 << ", 10]\n";
                     htmlFile << "            })\n";
-                    htmlFile << "        }).addTo(map);\n\n";
+                    htmlFile << "        }).addTo(map);\n";
+                    htmlFile << "        currentStandElements.push(marker_" << standName << ");\n\n";
                 }
                 catch (...)
                 {
@@ -1521,6 +1526,10 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         }
     }
 
+    // Generate timestamp for JavaScript use
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    
     htmlFile << R"(        
         // Add legend
         var legend = L.control({position: 'topright'});
@@ -1531,6 +1540,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                 '<i style="background:#45B7D1; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Schengen<br>' +
                 '<i style="background:#4ECDC4; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Non-Schengen<br>' +
                 '<i style="background:#FF6B6B; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Apron<br><br>' +
+                '<div style="background:#e8f5e8; padding:4px; border-radius:3px; margin:5px 0;"><strong>🔄 Auto-reload: ON</strong><br><small>Smart updates</small></div>' +
                 '<small>Click circles for details<br>Click map to copy coordinates</small>';
             return div;
         };
@@ -1605,15 +1615,87 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
         };
         L.control.layers(baseMaps).addTo(map);
+        
+        // Auto-reload system - works with local files
+        var lastKnownTimestamp = )" << timestamp << R"(;
+        var reloadCheckInterval;
+        
+        function startAutoReload() {
+            console.log('🔄 Auto-reload enabled - will detect file changes and reload automatically');
+            
+            // Create a hidden iframe that we'll use to check for updates
+            var iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.style.width = '1px';
+            iframe.style.height = '1px';
+            document.body.appendChild(iframe);
+            
+            function checkForUpdates() {
+                try {
+                    // Reload the iframe to get the latest version
+                    var cacheBuster = '?check=' + Date.now();
+                    iframe.src = window.location.href + cacheBuster;
+                    
+                    iframe.onload = function() {
+                        try {
+                            var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                            var iframeHtml = iframeDoc.documentElement.outerHTML;
+                            
+                            // Extract timestamp from the iframe HTML
+                            var timestampMatch = iframeHtml.match(/<!-- Generated: (\d+) -->/);
+                            if (timestampMatch) {
+                                var newTimestamp = parseInt(timestampMatch[1]);
+                                console.log('Checking: Current=' + lastKnownTimestamp + ', File=' + newTimestamp);
+                                
+                                if (newTimestamp > lastKnownTimestamp) {
+                                    console.log('✅ File updated! Reloading page...');
+                                    lastKnownTimestamp = newTimestamp;
+                                    window.location.reload(true);
+                                }
+                            }
+                        } catch (e) {
+                            // Fallback: just reload after a certain time if we can't check
+                            console.log('Using fallback check method');
+                            var currentTime = Math.floor(Date.now() / 1000);
+                            if (currentTime > lastKnownTimestamp + 5) { // 5 seconds buffer
+                                console.log('⏰ Time-based reload (fallback)');
+                                window.location.reload(true);
+                            }
+                        }
+                    };
+                } catch (e) {
+                    console.log('Check failed, using time-based fallback');
+                }
+            }
+            
+            // Check every 2 seconds
+            reloadCheckInterval = setInterval(checkForUpdates, 2000);
+            
+            // Also add a visual indicator
+            var indicator = document.createElement('div');
+            indicator.innerHTML = '🔄 Auto-reload active';
+            indicator.style.cssText = 'position:fixed;bottom:10px;right:10px;background:rgba(0,255,0,0.8);color:white;padding:5px 10px;border-radius:5px;font-size:12px;z-index:10000;font-family:Arial,sans-serif;';
+            document.body.appendChild(indicator);
+            
+            // Fade out indicator after 3 seconds
+            setTimeout(function() {
+                if (indicator && indicator.parentNode) {
+                    indicator.style.opacity = '0.3';
+                }
+            }, 3000);
+        }
+        
+        // Start auto-reload when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startAutoReload);
+        } else {
+            startAutoReload();
+        }
 
     </script>
 </body>
+<!-- Generated: )" << timestamp << R"( -->
 </html>)";
-
-// Generate a timestamp comment to help detect file changes
-    auto now = std::chrono::system_clock::now();
-    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-    htmlFile << "<!-- Generated: " << timestamp << " -->";
 
     htmlFile.close();
     
@@ -1648,18 +1730,25 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 }
 
 void printBanner() {
-const std::string banner = R"(    ____  ___    __  _______     ___   _____________   ________         
-   / __ \/   |  /  |/  / __ \   /   | / ____/ ____/ | / /_  __/         
-  / /_/ / /| | / /|_/ / /_/ /  / /| |/ / __/ __/ /  |/ / / /            
- / _, _/ ___ |/ /  / / ____/  / ___ / /_/ / /___/ /|  / / /             
-/_/ |_/_/  |_/_/  /_/_/      /_/  |_\____/_____/_/ |_/ /_/              
-                                                                        
-   ______            _____          ______                __            
-  / ____/___  ____  / __(_)___ _   / ____/_______  ____ _/ /_____  _____
- / /   / __ \/ __ \/ /_/ / __ `/  / /   / ___/ _ \/ __ `/ __/ __ \/ ___/
-/ /___/ /_/ / / / / __/ / /_/ /  / /___/ /  /  __/ /_/ / /_/ /_/ / /    
-\____/\____/_/ /_/_/ /_/\__, /   \____/_/   \___/\__,_/\__/\____/_/     
-                       /____/                                           )";
+const std::string banner = R"(                                                                         
+ ________________________________________________________________________
+/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/
+    ____  ___    __  _______     ___   _____________   ________          
+   / __ \/   |  /  |/  / __ \   /   | / ____/ ____/ | / /_  __/          
+  / /_/ / /| | / /|_/ / /_/ /  / /| |/ / __/ __/ /  |/ / / /             
+ / _, _/ ___ |/ /  / / ____/  / ___ / /_/ / /___/ /|  / / /              
+/_/ |_/_/  |_/_/  /_/_/      /_/  |_\____/_____/_/ |_/ /_/               
+                                                                         
+   ______            _____          ______                __             
+  / ____/___  ____  / __(_)___ _   / ____/_______  ____ _/ /_____  _____ 
+ / /   / __ \/ __ \/ /_/ / __ `/  / /   / ___/ _ \/ __ `/ __/ __ \/ ___/ 
+/ /___/ /_/ / / / / __/ / /_/ /  / /___/ /  /  __/ /_/ / /_/ /_/ / /     
+\____/\____/_/ /_/_/ /_/\__, /   \____/_/   \___/\__,_/\__/\____/_/      
+                       /____/                                            
+ ________________________________________________________________________
+/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/
+                                                                         
+                                                                         )";
     std::cout << CYAN << banner << RESET << std::endl;
 }
 
