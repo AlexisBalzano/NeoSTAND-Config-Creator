@@ -7,6 +7,9 @@
 #include <vector>
 #include <regex>
 #include <chrono>
+#include <thread>
+#include <atomic>
+#include <mutex>
 #include "nlohmann/json.hpp"
 
 #ifdef _WIN32
@@ -46,6 +49,90 @@ constexpr auto version = "v1.0.4";
 #define BOLD "\033[1m"
 #define UNDERLINE "\033[4m"
 #define REVERSED "\033[7m"
+
+// Live reload server using Python's built-in HTTP server
+class LiveReloadServer {
+private:
+    std::atomic<bool> running{false};
+    std::thread serverThread;
+    std::thread watchThread;
+    std::string mapFilePath;
+    std::filesystem::file_time_type lastModified;
+    int port;
+    
+public:
+    LiveReloadServer() : port(3000) {}
+    
+    void startServer(const std::string& mapFile) {
+        if (running.load()) return;
+        
+        mapFilePath = mapFile;
+        if (std::filesystem::exists(mapFile)) {
+            lastModified = std::filesystem::last_write_time(mapFile);
+        }
+        
+        running.store(true);
+        
+        // Start Python HTTP server
+        serverThread = std::thread([this]() {
+            std::string baseDir = std::filesystem::path(mapFilePath).parent_path().string();
+#ifdef _WIN32
+            std::string command = "cd \"" + baseDir + "\" && py -m http.server " + std::to_string(port) + " 2>nul";
+#else
+            std::string command = "cd \"" + baseDir + "\" && python -m http.server " + std::to_string(port) + " 2>nul";
+#endif
+            std::system(command.c_str());
+        });
+        
+        // Start file watcher
+        watchThread = std::thread([this]() {
+            watchForChanges();
+        });
+        
+        std::cout << CYAN << "🚀 Live reload server started at http://localhost:" << port << RESET << std::endl;
+        std::cout << YELLOW << "💡 Your map will auto-reload when you make changes!" << RESET << std::endl;
+    }
+    
+    void stop() {
+        running.store(false);
+        if (serverThread.joinable()) {
+            serverThread.join();
+        }
+        if (watchThread.joinable()) {
+            watchThread.join();
+        }
+    }
+    
+    int getPort() const { return port; }
+    
+private:
+    void watchForChanges() {
+        while (running.load()) {
+            if (!mapFilePath.empty() && std::filesystem::exists(mapFilePath)) {
+                auto currentModified = std::filesystem::last_write_time(mapFilePath);
+                if (currentModified > lastModified) {
+                    lastModified = currentModified;
+                    // Create a simple signal file that the browser can poll
+                    createReloadSignal();
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
+    
+    void createReloadSignal() {
+        std::string signalFile = std::filesystem::path(mapFilePath).parent_path().string() + "/reload_signal.txt";
+        std::ofstream signal(signalFile);
+        if (signal) {
+            signal << std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            signal.close();
+        }
+    }
+};
+
+// Global server instance
+static std::unique_ptr<LiveReloadServer> g_liveServer = nullptr;
 
 bool isCoordinatesValid(std::string &coordinates);
 
@@ -1703,82 +1790,57 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         };
         L.control.layers(baseMaps).addTo(map);
         
-        // Auto-reload system - works with local files
-        var lastKnownTimestamp = )" << timestamp << R"(;
-        var reloadCheckInterval;
-        
-        function startAutoReload() {
-            console.log('🔄 Auto-reload enabled - will detect file changes and reload automatically');
+        // Live reload system for localhost server
+        if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
+            console.log('🔄 Live reload enabled - monitoring for changes');
             
-            // Create a hidden iframe that we'll use to check for updates
-            var iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.style.width = '1px';
-            iframe.style.height = '1px';
-            document.body.appendChild(iframe);
+            var lastReloadCheck = 0;
+            var reloadCheckInterval;
             
-            function checkForUpdates() {
-                try {
-                    // Reload the iframe to get the latest version
-                    var cacheBuster = '?check=' + Date.now();
-                    iframe.src = window.location.href + cacheBuster;
-                    
-                    iframe.onload = function() {
-                        try {
-                            var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                            var iframeHtml = iframeDoc.documentElement.outerHTML;
-                            
-                            // Extract timestamp from the iframe HTML
-                            var timestampMatch = iframeHtml.match(/<!-- Generated: (\d+) -->/);
-                            if (timestampMatch) {
-                                var newTimestamp = parseInt(timestampMatch[1]);
-                                console.log('Checking: Current=' + lastKnownTimestamp + ', File=' + newTimestamp);
-                                
-                                if (newTimestamp > lastKnownTimestamp) {
-                                    console.log('✅ File updated! Reloading page...');
-                                    lastKnownTimestamp = newTimestamp;
-                                    window.location.reload(true);
-                                }
-                            }
-                        } catch (e) {
-                            // Fallback: just reload after a certain time if we can't check
-                            console.log('Using fallback check method');
-                            var currentTime = Math.floor(Date.now() / 1000);
-                            if (currentTime > lastKnownTimestamp + 5) { // 5 seconds buffer
-                                console.log('⏰ Time-based reload (fallback)');
-                                window.location.reload(true);
-                            }
+            function checkForReload() {
+                fetch('/reload_signal.txt?t=' + Date.now())
+                    .then(response => response.text())
+                    .then(timestamp => {
+                        var currentCheck = parseInt(timestamp);
+                        if (currentCheck > lastReloadCheck && lastReloadCheck > 0) {
+                            console.log('✅ File updated! Reloading page...');
+                            window.location.reload(true);
                         }
-                    };
-                } catch (e) {
-                    console.log('Check failed, using time-based fallback');
-                }
+                        lastReloadCheck = currentCheck;
+                    })
+                    .catch(error => {
+                        console.log('Reload check failed:', error.message);
+                    });
             }
             
             // Check every 2 seconds
-            reloadCheckInterval = setInterval(checkForUpdates, 2000);
+            reloadCheckInterval = setInterval(checkForReload, 2000);
             
-            // Also add a visual indicator
+            // Initialize check
+            setTimeout(checkForReload, 1000);
+            
+            // Add visual indicator
             var indicator = document.createElement('div');
-            indicator.innerHTML = '🔄 Auto-reload active';
-            indicator.style.cssText = 'position:fixed;bottom:10px;right:10px;background:rgba(0,255,0,0.8);color:white;padding:5px 10px;border-radius:5px;font-size:12px;z-index:10000;font-family:Arial,sans-serif;';
+            indicator.innerHTML = '🔄 Live Reload Active';
+            indicator.style.cssText = 'position:fixed;top:10px;right:10px;background:linear-gradient(45deg, #4CAF50, #45a049);color:white;padding:8px 12px;border-radius:8px;font-size:12px;z-index:10000;font-family:Arial,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);';
             document.body.appendChild(indicator);
             
-            // Fade out indicator after 3 seconds
+            // Animate indicator
+            indicator.style.transform = 'translateY(-100px)';
+            indicator.style.transition = 'all 0.3s ease';
+            setTimeout(function() {
+                indicator.style.transform = 'translateY(0)';
+            }, 100);
+            
+            // Fade after 3 seconds
             setTimeout(function() {
                 if (indicator && indicator.parentNode) {
-                    indicator.style.opacity = '0.3';
+                    indicator.style.opacity = '0.6';
+                    indicator.innerHTML = '🔄 Monitoring...';
                 }
             }, 3000);
         }
-        
-        // Start auto-reload when page loads
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', startAutoReload);
-        } else {
-            startAutoReload();
-        }
-
+          
     </script>
 </body>
 <!-- Generated: )" << timestamp << R"( -->
@@ -1787,32 +1849,46 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
     htmlFile.close();
     
     std::cout << GREEN << "HTML map generated: " << filename << RESET << std::endl;
-    // Open the file in the default web browser only if requested
+    
+    // Start or update live reload server
+    if (!g_liveServer) {
+        g_liveServer = std::make_unique<LiveReloadServer>();
+        g_liveServer->startServer(filename);
+        
+        // Give server time to start
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    }
+    
+    // Open the localhost URL in browser if requested
     if (openBrowser)
     {
+        std::string mapFileName = std::filesystem::path(filename).filename().string();
+        std::string localhost_url = "http://localhost:" + std::to_string(g_liveServer->getPort()) + "/" + mapFileName;
+        
         std::string openCommand;
 #ifdef _WIN32
-        openCommand = "start " + filename;
+        openCommand = "start \"\" \"" + localhost_url + "\"";
 #endif
 #ifdef __APPLE__
-        openCommand = "open " + filename;
+        openCommand = "open \"" + localhost_url + "\"";
 #endif
 #ifdef __linux__
-        openCommand = "xdg-open " + filename;
+        openCommand = "xdg-open \"" + localhost_url + "\"";
 #endif
         if (!openCommand.empty())
         {
             std::system(openCommand.c_str());
-            std::cout << CYAN << "Map opened in your default web browser." << RESET << std::endl;
+            std::cout << CYAN << "🌐 Map opened at " << localhost_url << RESET << std::endl;
+            std::cout << GREEN << "✨ Live reload is active - changes will appear automatically!" << RESET << std::endl;
         }
         else
         {
-            std::cout << YELLOW << "Please open the file manually in your web browser." << RESET << std::endl;
+            std::cout << YELLOW << "Please open " << localhost_url << " in your browser." << RESET << std::endl;
         }
     }
     else
     {
-        std::cout << GREY << "Map updated. Refresh your browser to see the changes." << RESET << std::endl;
+        std::cout << CYAN << "🔄 Map updated - live reload will refresh your browser automatically" << RESET << std::endl;
     }
 }
 
@@ -1866,7 +1942,17 @@ int main()
     bool mapGenerated = false;
     nlohmann::ordered_json configJson;
     std::string icao;
-     if (init(configJson, mapGenerated, icao) == 1) {
+    
+    // Cleanup handler for live server
+    auto cleanup = []() {
+        if (g_liveServer) {
+            std::cout << YELLOW << "\n🛑 Shutting down live reload server..." << RESET << std::endl;
+            g_liveServer->stop();
+            g_liveServer.reset();
+        }
+    };
+    
+    if (init(configJson, mapGenerated, icao) == 1) {
         return 1;
     }
 
@@ -1880,6 +1966,7 @@ int main()
 
         if (command == "exit")
         {
+            cleanup();
             break;
         }
         else if (command == "save")
@@ -1891,6 +1978,7 @@ int main()
                 std::cout << CYAN << "Updating map visualization..." << RESET << std::endl;
                 generateMap(configJson, icao, false); // Don't open browser on updates
             }
+            cleanup();
         }
         else if (command == "list")
         {
