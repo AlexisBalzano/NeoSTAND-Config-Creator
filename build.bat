@@ -8,4 +8,3 @@ if %errorlevel% == 0 (
 ) else (
     echo Build failed! ✗
 )
-pause
