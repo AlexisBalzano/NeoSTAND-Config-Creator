@@ -1647,8 +1647,28 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
     }
 }
 
+void printBanner() {
+const std::string banner = R"(    ____  ___    __  _______     ___   _____________   ________         
+   / __ \/   |  /  |/  / __ \   /   | / ____/ ____/ | / /_  __/         
+  / /_/ / /| | / /|_/ / /_/ /  / /| |/ / __/ __/ /  |/ / / /            
+ / _, _/ ___ |/ /  / / ____/  / ___ / /_/ / /___/ /|  / / /             
+/_/ |_/_/  |_/_/  /_/_/      /_/  |_\____/_____/_/ |_/ /_/              
+                                                                        
+   ______            _____          ______                __            
+  / ____/___  ____  / __(_)___ _   / ____/_______  ____ _/ /_____  _____
+ / /   / __ \/ __ \/ /_/ / __ `/  / /   / ___/ _ \/ __ `/ __/ __ \/ ___/
+/ /___/ /_/ / / / / __/ / /_/ /  / /___/ /  /  __/ /_/ / /_/ /_/ / /    
+\____/\____/_/ /_/_/ /_/\__, /   \____/_/   \___/\__,_/\__/\____/_/     
+                       /____/                                           )";
+    std::cout << CYAN << banner << RESET << std::endl;
+}
+
 int init(nlohmann::ordered_json &configJson, bool& mapGenerated, std::string &icao) {
     mapGenerated = false;
+
+    // Print pretty banner
+    printBanner();
+
     std::cout << "Select config file (ICAO, if not found, new one is created): ";
     std::getline(std::cin, icao);
     std::transform(icao.begin(), icao.end(), icao.begin(), ::toupper);
