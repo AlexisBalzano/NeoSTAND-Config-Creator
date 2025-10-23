@@ -42,7 +42,7 @@ The `map` command generates an interactive HTML map that visualizes all stands w
 
 ### Usage:
 1. Run the `map` command once to generate the map and start the live reload server
-2. The map opens automatically at `http://localhost:3000/[ICAO]_map.html`
+2. The map opens automatically at `http://localhost:4000/[ICAO]_map.html`
 3. Make any changes to your stands using other commands
 4. **The map automatically refreshes in your browser** when changes are detected
 5. No need to manually refresh - changes appear instantly!
@@ -52,5 +52,5 @@ The generated HTML file (`{ICAO}_map.html`) can be opened in any web browser and
 ### Live Reload Requirements:
 - **Python 3.x** must be installed and available in PATH
 - The live reload server automatically starts when you use the `map` command
-- Server runs on `localhost:3000` (automatically finds available port)
-- The server stops when you `save` or `exit` the application
+- Server runs on `localhost:4000` (automatically finds available port)
+- The server stops when you `exit` the application
