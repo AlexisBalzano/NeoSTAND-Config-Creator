@@ -50,6 +50,8 @@ constexpr auto version = "v1.0.5";
 #define UNDERLINE "\033[4m"
 #define REVERSED "\033[7m"
 
+void generateMap(const nlohmann::ordered_json &configJson, const std::string &icao, bool openBrowser);
+
 // Live reload server using Python's built-in HTTP server
 class LiveReloadServer {
 private:
@@ -185,7 +187,7 @@ std::string getBaseDir() {
     return execDir + "configs/";
 }
 
-bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson)
+bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson, bool& mapGenerated)
 {
     std::string baseDir = getBaseDir();
     std::cout << "Config directory path: " << baseDir << std::endl;
@@ -236,6 +238,10 @@ bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson)
 
     if (configJson.empty())
     {
+        // Start map server for live reload by creating a temporary empty map file
+        generateMap(configJson, icao, true);
+        mapGenerated = true;
+
         std::string coordinates;
         std::cout << "Enter airport coordinates (format: lat:lon:radius): ";
         while (true)
@@ -1459,12 +1465,6 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
 
 void generateMap(const nlohmann::ordered_json &configJson, const std::string &icao, bool openBrowser = true)
 {
-    if (!configJson.contains("Stands") || !configJson["Stands"].is_object() || configJson["Stands"].empty())
-    {
-        std::cout << RED << "No stands available to visualize." << RESET << std::endl;
-        return;
-    }
-
     std::string filename = getBaseDir() + icao + "_map.html";
     std::ofstream htmlFile(filename);
     
@@ -1476,32 +1476,41 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 
     // Calculate center coordinates from all stands
     double totalLat = 0, totalLon = 0;
+    double centerLat = 0, centerLon = 0;
+    int zoomLevel = 6;
     int validStands = 0;
     
-    for (auto &[standName, standData] : configJson["Stands"].items())
+    if (!configJson.contains("Stands") || !configJson["Stands"].is_object())
     {
-        if (standData.contains("Coordinates"))
+        centerLat = 47.009279;
+        centerLon = 3.765732;
+    } else {
+        for (auto &[standName, standData] : configJson["Stands"].items())
         {
-            std::string coords = standData["Coordinates"];
-            size_t firstColon = coords.find(':');
-            size_t secondColon = coords.find(':', firstColon + 1);
-            if (firstColon != std::string::npos && secondColon != std::string::npos)
+            if (standData.contains("Coordinates"))
             {
-                try
+                std::string coords = standData["Coordinates"];
+                size_t firstColon = coords.find(':');
+                size_t secondColon = coords.find(':', firstColon + 1);
+                if (firstColon != std::string::npos && secondColon != std::string::npos)
                 {
-                    double lat = std::stod(coords.substr(0, firstColon));
-                    double lon = std::stod(coords.substr(firstColon + 1, secondColon - firstColon - 1));
-                    totalLat += lat;
-                    totalLon += lon;
-                    validStands++;
+                    try
+                    {
+                        double lat = std::stod(coords.substr(0, firstColon));
+                        double lon = std::stod(coords.substr(firstColon + 1, secondColon - firstColon - 1));
+                        totalLat += lat;
+                        totalLon += lon;
+                        validStands++;
+                    }
+                    catch (...) { /* Skip invalid coordinates */ }
                 }
-                catch (...) { /* Skip invalid coordinates */ }
             }
         }
+        
+        centerLat = validStands > 0 ? totalLat / validStands : 47.009279;
+        centerLon = validStands > 0 ? totalLon / validStands : 3.765732;
+        zoomLevel = validStands > 0 ? 16 : 6;
     }
-    
-    double centerLat = validStands > 0 ? totalLat / validStands : 0;
-    double centerLon = validStands > 0 ? totalLon / validStands : 0;
 
     htmlFile << R"(<!DOCTYPE html>
 <html>
@@ -1527,7 +1536,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
     <script>
         var map = L.map('map', {
             maxZoom: 19  // Increase maximum zoom level
-        }).setView([)" << centerLat << ", " << centerLon << R"(], 16);
+        }).setView([)" << centerLat << ", " << centerLon << R"(], )" << zoomLevel << R"();
         
         // Add satellite tile layer
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -1559,142 +1568,144 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 )";
 
     // Add stands to the map
-    for (auto &[standName, standData] : configJson["Stands"].items())
-    {
-        if (standData.contains("Coordinates"))
+    if (configJson.contains("Stands") && configJson["Stands"].is_object()) {
+        for (auto &[standName, standData] : configJson["Stands"].items())
         {
-            std::string coords = standData["Coordinates"];
-            size_t firstColon = coords.find(':');
-            size_t secondColon = coords.find(':', firstColon + 1);
-            if (firstColon != std::string::npos && secondColon != std::string::npos)
+            if (standData.contains("Coordinates"))
             {
-                try
+                std::string coords = standData["Coordinates"];
+                size_t firstColon = coords.find(':');
+                size_t secondColon = coords.find(':', firstColon + 1);
+                if (firstColon != std::string::npos && secondColon != std::string::npos)
                 {
-                    double lat = std::stod(coords.substr(0, firstColon));
-                    double lon = std::stod(coords.substr(firstColon + 1, secondColon - firstColon - 1));
-                    std::string radiusStr = coords.substr(secondColon + 1);
-                    double radius = radiusStr.empty() ? 20 : std::stod(radiusStr);
-                    
-                    htmlFile << "        // Stand " << standName << "\n";
-                    htmlFile << "        var stand_" << standName << " = {\n";
-                    htmlFile << "            name: '" << standName << "',\n";
-                    htmlFile << "            lat: " << lat << ",\n";
-                    htmlFile << "            lon: " << lon << ",\n";
-                    htmlFile << "            radius: " << radius << ",\n";
-                    if (standData.contains("Code"))
-                        htmlFile << "            code: '" << standData["Code"] << "',\n";
-                    if (standData.contains("Use"))
-                        htmlFile << "            use: '" << standData["Use"] << "',\n";
-                    if (standData.contains("Schengen"))
-                        htmlFile << "            Schengen: " << (standData["Schengen"].get<bool>() ? "true" : "false") << ",\n";
-                    if (standData.contains("Apron"))
-                        htmlFile << "            Apron: " << (standData["Apron"].get<bool>() ? "true" : "false") << ",\n";
-                    if (standData.contains("Priority"))
-                        htmlFile << "            Priority: " << standData["Priority"] << ",\n";
-                    htmlFile << "        };\n";
-                    
-                    htmlFile << "        var circle_" << standName << " = L.circle([" << lat << ", " << lon << "], {\n";
-                    htmlFile << "            radius: " << radius << ",\n";
-                    htmlFile << "            color: getStandColor(stand_" << standName << "),\n";
-                    htmlFile << "            fillColor: getStandColor(stand_" << standName << "),\n";
-                    htmlFile << "            fillOpacity: getStandOpacity(stand_" << standName << ")\n";
-                    htmlFile << "        }).addTo(map);\n";
-                    htmlFile << "        currentStandElements.push(circle_" << standName << ");\n";
-                    
-                    // Create popup content
-                    htmlFile << "        var popupContent_" << standName << " = '<div class=\"stand-info\">Stand: " << standName << "</div>';\n";
-                    if (standData.contains("Code"))
-                        htmlFile << "        popupContent_" << standName << " += '<br>Code: " << standData["Code"] << "';\n";
-                    if (standData.contains("Use"))
-                        htmlFile << "        popupContent_" << standName << " += '<br>Use: " << standData["Use"] << "';\n";
-                    if (standData.contains("Schengen"))
-                        htmlFile << "        popupContent_" << standName << " += '<br>Schengen: " << (standData["Schengen"].get<bool>() ? "Yes" : "No") << "';\n";
-                    if (standData.contains("Apron"))
-                        htmlFile << "        popupContent_" << standName << " += '<br>Apron: " << (standData["Apron"].get<bool>() ? "Yes" : "No") << "';\n";
-                    if (standData.contains("Priority"))
-                        htmlFile << "        popupContent_" << standName << " += '<br>Priority: " << standData["Priority"] << "';\n";
-                    htmlFile << "        popupContent_" << standName << " += '<br>Radius: " << radius << "m';\n";
-                    htmlFile << "        popupContent_" << standName << " += '<br>Coordinates: " << coords << "';\n";
-                    
-                    // Add arrays if they exist
-                    if (standData.contains("Callsigns") && standData["Callsigns"].is_array())
+                    try
                     {
-                        htmlFile << "        popupContent_" << standName << " += '<br>Callsigns: ";
-                        for (auto it = standData["Callsigns"].begin(); it != standData["Callsigns"].end(); ++it)
+                        double lat = std::stod(coords.substr(0, firstColon));
+                        double lon = std::stod(coords.substr(firstColon + 1, secondColon - firstColon - 1));
+                        std::string radiusStr = coords.substr(secondColon + 1);
+                        double radius = radiusStr.empty() ? 20 : std::stod(radiusStr);
+                        
+                        htmlFile << "        // Stand " << standName << "\n";
+                        htmlFile << "        var stand_" << standName << " = {\n";
+                        htmlFile << "            name: '" << standName << "',\n";
+                        htmlFile << "            lat: " << lat << ",\n";
+                        htmlFile << "            lon: " << lon << ",\n";
+                        htmlFile << "            radius: " << radius << ",\n";
+                        if (standData.contains("Code"))
+                            htmlFile << "            code: '" << standData["Code"] << "',\n";
+                        if (standData.contains("Use"))
+                            htmlFile << "            use: '" << standData["Use"] << "',\n";
+                        if (standData.contains("Schengen"))
+                            htmlFile << "            Schengen: " << (standData["Schengen"].get<bool>() ? "true" : "false") << ",\n";
+                        if (standData.contains("Apron"))
+                            htmlFile << "            Apron: " << (standData["Apron"].get<bool>() ? "true" : "false") << ",\n";
+                        if (standData.contains("Priority"))
+                            htmlFile << "            Priority: " << standData["Priority"] << ",\n";
+                        htmlFile << "        };\n";
+                        
+                        htmlFile << "        var circle_" << standName << " = L.circle([" << lat << ", " << lon << "], {\n";
+                        htmlFile << "            radius: " << radius << ",\n";
+                        htmlFile << "            color: getStandColor(stand_" << standName << "),\n";
+                        htmlFile << "            fillColor: getStandColor(stand_" << standName << "),\n";
+                        htmlFile << "            fillOpacity: getStandOpacity(stand_" << standName << ")\n";
+                        htmlFile << "        }).addTo(map);\n";
+                        htmlFile << "        currentStandElements.push(circle_" << standName << ");\n";
+                        
+                        // Create popup content
+                        htmlFile << "        var popupContent_" << standName << " = '<div class=\"stand-info\">Stand: " << standName << "</div>';\n";
+                        if (standData.contains("Code"))
+                            htmlFile << "        popupContent_" << standName << " += '<br>Code: " << standData["Code"] << "';\n";
+                        if (standData.contains("Use"))
+                            htmlFile << "        popupContent_" << standName << " += '<br>Use: " << standData["Use"] << "';\n";
+                        if (standData.contains("Schengen"))
+                            htmlFile << "        popupContent_" << standName << " += '<br>Schengen: " << (standData["Schengen"].get<bool>() ? "Yes" : "No") << "';\n";
+                        if (standData.contains("Apron"))
+                            htmlFile << "        popupContent_" << standName << " += '<br>Apron: " << (standData["Apron"].get<bool>() ? "Yes" : "No") << "';\n";
+                        if (standData.contains("Priority"))
+                            htmlFile << "        popupContent_" << standName << " += '<br>Priority: " << standData["Priority"] << "';\n";
+                        htmlFile << "        popupContent_" << standName << " += '<br>Radius: " << radius << "m';\n";
+                        htmlFile << "        popupContent_" << standName << " += '<br>Coordinates: " << coords << "';\n";
+                        
+                        // Add arrays if they exist
+                        if (standData.contains("Callsigns") && standData["Callsigns"].is_array())
                         {
-                            if (it != standData["Callsigns"].begin()) htmlFile << ", ";
-                            htmlFile << *it;
+                            htmlFile << "        popupContent_" << standName << " += '<br>Callsigns: ";
+                            for (auto it = standData["Callsigns"].begin(); it != standData["Callsigns"].end(); ++it)
+                            {
+                                if (it != standData["Callsigns"].begin()) htmlFile << ", ";
+                                htmlFile << *it;
+                            }
+                            htmlFile << "';\n";
                         }
-                        htmlFile << "';\n";
+                        
+                        if (standData.contains("Countries") && standData["Countries"].is_array())
+                        {
+                            htmlFile << "        popupContent_" << standName << " += '<br>Countries: ";
+                            for (auto it = standData["Countries"].begin(); it != standData["Countries"].end(); ++it)
+                            {
+                                if (it != standData["Countries"].begin()) htmlFile << ", ";
+                                htmlFile << *it;
+                            }
+                            htmlFile << "';\n";
+                        }
+                        
+                        if (standData.contains("Block") && standData["Block"].is_array())
+                        {
+                            htmlFile << "        popupContent_" << standName << " += '<br>Blocked: ";
+                            for (auto it = standData["Block"].begin(); it != standData["Block"].end(); ++it)
+                            {
+                                if (it != standData["Block"].begin()) htmlFile << ", ";
+                                htmlFile << *it;
+                            }
+                            htmlFile << "';\n";
+                        }
+                        
+                        htmlFile << "        circle_" << standName << ".bindPopup(popupContent_" << standName << ");\n";
+                        
+                        // Add click event to circle for coordinate copying
+                        htmlFile << "        circle_" << standName << ".on('click', function(e) {\n";
+                        htmlFile << "            var lat = e.latlng.lat.toFixed(6);\n";
+                        htmlFile << "            var lng = e.latlng.lng.toFixed(6);\n";
+                        htmlFile << "            var coordString = lat + ':' + lng;\n";
+                        htmlFile << "            \n";
+                        htmlFile << "            // Copy to clipboard\n";
+                        htmlFile << "            if (navigator.clipboard && window.isSecureContext) {\n";
+                        htmlFile << "                navigator.clipboard.writeText(coordString).then(function() {\n";
+                        htmlFile << "                    console.log('Coordinates copied: ' + coordString);\n";
+                        htmlFile << "                }).catch(function(err) {\n";
+                        htmlFile << "                    console.error('Failed to copy coordinates: ', err);\n";
+                        htmlFile << "                });\n";
+                        htmlFile << "            } else {\n";
+                        htmlFile << "                // Fallback for older browsers\n";
+                        htmlFile << "                var textArea = document.createElement('textarea');\n";
+                        htmlFile << "                textArea.value = coordString;\n";
+                        htmlFile << "                document.body.appendChild(textArea);\n";
+                        htmlFile << "                textArea.select();\n";
+                        htmlFile << "                document.execCommand('copy');\n";
+                        htmlFile << "                document.body.removeChild(textArea);\n";
+                        htmlFile << "            }\n";
+                        htmlFile << "            // Don't prevent the popup from showing\n";
+                        htmlFile << "        });\n\n";
+    
+                        // Calculate width based on stand name length
+                        int labelWidth = std::max(30, static_cast<int>(standName.length()) * 8);
+    
+    
+                        // Add stand label
+                        htmlFile << "        var marker_" << standName << " = L.marker([" << lat << ", " << lon << "], {\n";
+                        htmlFile << "            icon: L.divIcon({\n";
+                        htmlFile << "                className: 'stand-label',\n";
+                        htmlFile << "                html: '<div style=\"background-color: rgba(255,255,255,0.8); padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 12px; color: black; text-align: center; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; box-sizing: border-box;\">" << standName << "</div>',\n";
+                        htmlFile << "                iconSize: [" << labelWidth << ", 20],\n";
+                        htmlFile << "                iconAnchor: [" << labelWidth / 2 << ", 10]\n";
+                        htmlFile << "            })\n";
+                        htmlFile << "        }).addTo(map);\n";
+                        htmlFile << "        currentStandElements.push(marker_" << standName << ");\n\n";
                     }
-                    
-                    if (standData.contains("Countries") && standData["Countries"].is_array())
+                    catch (...)
                     {
-                        htmlFile << "        popupContent_" << standName << " += '<br>Countries: ";
-                        for (auto it = standData["Countries"].begin(); it != standData["Countries"].end(); ++it)
-                        {
-                            if (it != standData["Countries"].begin()) htmlFile << ", ";
-                            htmlFile << *it;
-                        }
-                        htmlFile << "';\n";
+                        std::cout << YELLOW << "Warning: Invalid coordinates for stand " << standName << RESET << std::endl;
                     }
-                    
-                    if (standData.contains("Block") && standData["Block"].is_array())
-                    {
-                        htmlFile << "        popupContent_" << standName << " += '<br>Blocked: ";
-                        for (auto it = standData["Block"].begin(); it != standData["Block"].end(); ++it)
-                        {
-                            if (it != standData["Block"].begin()) htmlFile << ", ";
-                            htmlFile << *it;
-                        }
-                        htmlFile << "';\n";
-                    }
-                    
-                    htmlFile << "        circle_" << standName << ".bindPopup(popupContent_" << standName << ");\n";
-                    
-                    // Add click event to circle for coordinate copying
-                    htmlFile << "        circle_" << standName << ".on('click', function(e) {\n";
-                    htmlFile << "            var lat = e.latlng.lat.toFixed(6);\n";
-                    htmlFile << "            var lng = e.latlng.lng.toFixed(6);\n";
-                    htmlFile << "            var coordString = lat + ':' + lng;\n";
-                    htmlFile << "            \n";
-                    htmlFile << "            // Copy to clipboard\n";
-                    htmlFile << "            if (navigator.clipboard && window.isSecureContext) {\n";
-                    htmlFile << "                navigator.clipboard.writeText(coordString).then(function() {\n";
-                    htmlFile << "                    console.log('Coordinates copied: ' + coordString);\n";
-                    htmlFile << "                }).catch(function(err) {\n";
-                    htmlFile << "                    console.error('Failed to copy coordinates: ', err);\n";
-                    htmlFile << "                });\n";
-                    htmlFile << "            } else {\n";
-                    htmlFile << "                // Fallback for older browsers\n";
-                    htmlFile << "                var textArea = document.createElement('textarea');\n";
-                    htmlFile << "                textArea.value = coordString;\n";
-                    htmlFile << "                document.body.appendChild(textArea);\n";
-                    htmlFile << "                textArea.select();\n";
-                    htmlFile << "                document.execCommand('copy');\n";
-                    htmlFile << "                document.body.removeChild(textArea);\n";
-                    htmlFile << "            }\n";
-                    htmlFile << "            // Don't prevent the popup from showing\n";
-                    htmlFile << "        });\n\n";
-
-                    // Calculate width based on stand name length
-                    int labelWidth = std::max(30, static_cast<int>(standName.length()) * 8);
-
-
-                    // Add stand label
-                    htmlFile << "        var marker_" << standName << " = L.marker([" << lat << ", " << lon << "], {\n";
-                    htmlFile << "            icon: L.divIcon({\n";
-                    htmlFile << "                className: 'stand-label',\n";
-                    htmlFile << "                html: '<div style=\"background-color: rgba(255,255,255,0.8); padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 12px; color: black; text-align: center; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; box-sizing: border-box;\">" << standName << "</div>',\n";
-                    htmlFile << "                iconSize: [" << labelWidth << ", 20],\n";
-                    htmlFile << "                iconAnchor: [" << labelWidth / 2 << ", 10]\n";
-                    htmlFile << "            })\n";
-                    htmlFile << "        }).addTo(map);\n";
-                    htmlFile << "        currentStandElements.push(marker_" << standName << ");\n\n";
-                }
-                catch (...)
-                {
-                    std::cout << YELLOW << "Warning: Invalid coordinates for stand " << standName << RESET << std::endl;
                 }
             }
         }
@@ -1927,7 +1938,7 @@ int init(nlohmann::ordered_json &configJson, bool& mapGenerated, std::string &ic
     std::transform(icao.begin(), icao.end(), icao.begin(), ::toupper);
 
 
-    if (!getConfig(icao, configJson))
+    if (!getConfig(icao, configJson, mapGenerated))
     {
         return 1;
     }
