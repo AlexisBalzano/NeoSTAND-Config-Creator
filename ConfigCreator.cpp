@@ -61,7 +61,7 @@ private:
     int port;
     
 public:
-    LiveReloadServer() : port(3000) {}
+    LiveReloadServer() : port(4000) {}
     
     void startServer(const std::string& mapFile) {
         if (running.load()) return;
@@ -1978,7 +1978,6 @@ int main()
                 std::cout << CYAN << "Updating map visualization..." << RESET << std::endl;
                 generateMap(configJson, icao, false); // Don't open browser on updates
             }
-            cleanup();
         }
         else if (command == "list")
         {
