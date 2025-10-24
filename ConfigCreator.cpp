@@ -1584,9 +1584,11 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                         double lon = std::stod(coords.substr(firstColon + 1, secondColon - firstColon - 1));
                         std::string radiusStr = coords.substr(secondColon + 1);
                         double radius = radiusStr.empty() ? 20 : std::stod(radiusStr);
-                        
+                        std::string standNameVar = standName;
+                        std::replace(standNameVar.begin(), standNameVar.end(), ' ', '_');
+
                         htmlFile << "        // Stand " << standName << "\n";
-                        htmlFile << "        var stand_" << standName << " = {\n";
+                        htmlFile << "        var stand_" << standNameVar << " = {\n";
                         htmlFile << "            name: '" << standName << "',\n";
                         htmlFile << "            lat: " << lat << ",\n";
                         htmlFile << "            lon: " << lon << ",\n";
@@ -1603,33 +1605,33 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                             htmlFile << "            Priority: " << standData["Priority"] << ",\n";
                         htmlFile << "        };\n";
                         
-                        htmlFile << "        var circle_" << standName << " = L.circle([" << lat << ", " << lon << "], {\n";
+                        htmlFile << "        var circle_" << standNameVar << " = L.circle([" << lat << ", " << lon << "], {\n";
                         htmlFile << "            radius: " << radius << ",\n";
-                        htmlFile << "            color: getStandColor(stand_" << standName << "),\n";
-                        htmlFile << "            fillColor: getStandColor(stand_" << standName << "),\n";
-                        htmlFile << "            fillOpacity: getStandOpacity(stand_" << standName << ")\n";
+                        htmlFile << "            color: getStandColor(stand_" << standNameVar << "),\n";
+                        htmlFile << "            fillColor: getStandColor(stand_" << standNameVar << "),\n";
+                        htmlFile << "            fillOpacity: getStandOpacity(stand_" << standNameVar << ")\n";
                         htmlFile << "        }).addTo(map);\n";
-                        htmlFile << "        currentStandElements.push(circle_" << standName << ");\n";
+                        htmlFile << "        currentStandElements.push(circle_" << standNameVar << ");\n";
                         
                         // Create popup content
-                        htmlFile << "        var popupContent_" << standName << " = '<div class=\"stand-info\">Stand: " << standName << "</div>';\n";
+                        htmlFile << "        var popupContent_" << standNameVar << " = '<div class=\"stand-info\">Stand: " << standName << "</div>';\n";
                         if (standData.contains("Code"))
-                            htmlFile << "        popupContent_" << standName << " += '<br>Code: " << standData["Code"] << "';\n";
+                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Code: " << standData["Code"] << "';\n";
                         if (standData.contains("Use"))
-                            htmlFile << "        popupContent_" << standName << " += '<br>Use: " << standData["Use"] << "';\n";
+                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Use: " << standData["Use"] << "';\n";
                         if (standData.contains("Schengen"))
-                            htmlFile << "        popupContent_" << standName << " += '<br>Schengen: " << (standData["Schengen"].get<bool>() ? "Yes" : "No") << "';\n";
+                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Schengen: " << (standData["Schengen"].get<bool>() ? "Yes" : "No") << "';\n";
                         if (standData.contains("Apron"))
-                            htmlFile << "        popupContent_" << standName << " += '<br>Apron: " << (standData["Apron"].get<bool>() ? "Yes" : "No") << "';\n";
+                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Apron: " << (standData["Apron"].get<bool>() ? "Yes" : "No") << "';\n";
                         if (standData.contains("Priority"))
-                            htmlFile << "        popupContent_" << standName << " += '<br>Priority: " << standData["Priority"] << "';\n";
-                        htmlFile << "        popupContent_" << standName << " += '<br>Radius: " << radius << "m';\n";
-                        htmlFile << "        popupContent_" << standName << " += '<br>Coordinates: " << coords << "';\n";
+                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Priority: " << standData["Priority"] << "';\n";
+                        htmlFile << "        popupContent_" << standNameVar << " += '<br>Radius: " << radius << "m';\n";
+                        htmlFile << "        popupContent_" << standNameVar << " += '<br>Coordinates: " << coords << "';\n";
                         
                         // Add arrays if they exist
                         if (standData.contains("Callsigns") && standData["Callsigns"].is_array())
                         {
-                            htmlFile << "        popupContent_" << standName << " += '<br>Callsigns: ";
+                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Callsigns: ";
                             for (auto it = standData["Callsigns"].begin(); it != standData["Callsigns"].end(); ++it)
                             {
                                 if (it != standData["Callsigns"].begin()) htmlFile << ", ";
@@ -1640,7 +1642,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                         
                         if (standData.contains("Countries") && standData["Countries"].is_array())
                         {
-                            htmlFile << "        popupContent_" << standName << " += '<br>Countries: ";
+                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Countries: ";
                             for (auto it = standData["Countries"].begin(); it != standData["Countries"].end(); ++it)
                             {
                                 if (it != standData["Countries"].begin()) htmlFile << ", ";
@@ -1651,7 +1653,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                         
                         if (standData.contains("Block") && standData["Block"].is_array())
                         {
-                            htmlFile << "        popupContent_" << standName << " += '<br>Blocked: ";
+                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Blocked: ";
                             for (auto it = standData["Block"].begin(); it != standData["Block"].end(); ++it)
                             {
                                 if (it != standData["Block"].begin()) htmlFile << ", ";
@@ -1660,10 +1662,10 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                             htmlFile << "';\n";
                         }
                         
-                        htmlFile << "        circle_" << standName << ".bindPopup(popupContent_" << standName << ");\n";
+                        htmlFile << "        circle_" << standNameVar << ".bindPopup(popupContent_" << standNameVar << ");\n";
                         
                         // Add click event to circle for coordinate copying
-                        htmlFile << "        circle_" << standName << ".on('click', function(e) {\n";
+                        htmlFile << "        circle_" << standNameVar << ".on('click', function(e) {\n";
                         htmlFile << "            var lat = e.latlng.lat.toFixed(6);\n";
                         htmlFile << "            var lng = e.latlng.lng.toFixed(6);\n";
                         htmlFile << "            var coordString = lat + ':' + lng;\n";
@@ -1692,7 +1694,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
     
     
                         // Add stand label
-                        htmlFile << "        var marker_" << standName << " = L.marker([" << lat << ", " << lon << "], {\n";
+                        htmlFile << "        var marker_" << standNameVar << " = L.marker([" << lat << ", " << lon << "], {\n";
                         htmlFile << "            icon: L.divIcon({\n";
                         htmlFile << "                className: 'stand-label',\n";
                         htmlFile << "                html: '<div style=\"background-color: rgba(255,255,255,0.8); padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 12px; color: black; text-align: center; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; box-sizing: border-box;\">" << standName << "</div>',\n";
@@ -1700,7 +1702,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                         htmlFile << "                iconAnchor: [" << labelWidth / 2 << ", 10]\n";
                         htmlFile << "            })\n";
                         htmlFile << "        }).addTo(map);\n";
-                        htmlFile << "        currentStandElements.push(marker_" << standName << ");\n\n";
+                        htmlFile << "        currentStandElements.push(marker_" << standNameVar << ");\n\n";
                     }
                     catch (...)
                     {
@@ -2003,6 +2005,9 @@ int main()
         else if (command.rfind("add ", 0) == 0)
         {
             std::string standName = command.substr(4);
+            //remove leading/trailing spaces
+            standName.erase(0, standName.find_first_not_of(" \t\n\r\f\v"));
+            standName.erase(standName.find_last_not_of(" \t\n\r\f\v") + 1);
             addStand(configJson, standName);
             // Auto-update map if it was previously generated
             if (mapGenerated)
@@ -2013,6 +2018,9 @@ int main()
         else if (command.rfind("remove ", 0) == 0)
         {
             std::string standName = command.substr(7);
+            // remove leading/trailing spaces
+            standName.erase(0, standName.find_first_not_of(" \t\n\r\f\v"));
+            standName.erase(standName.find_last_not_of(" \t\n\r\f\v") + 1);
             removeStand(configJson, standName);
             // Auto-update map if it was previously generated
             if (mapGenerated)
@@ -2023,6 +2031,9 @@ int main()
         else if (command.rfind("copy ", 0) == 0)
         {
             std::string standName = command.substr(5);
+            //remove leading/trailing spaces
+            standName.erase(0, standName.find_first_not_of(" \t\n\r\f\v"));
+            standName.erase(standName.find_last_not_of(" \t\n\r\f\v") + 1);
             copyStand(configJson, standName);
             // Auto-update map if it was previously generated
             if (mapGenerated)
@@ -2033,6 +2044,9 @@ int main()
         else if (command.rfind("batchcopy ", 0) == 0)
         {
             std::string standName = command.substr(10);
+            //remove leading/trailing spaces
+            standName.erase(0, standName.find_first_not_of(" \t\n\r\f\v"));
+            standName.erase(standName.find_last_not_of(" \t\n\r\f\v") + 1);
             batchcopy(configJson, standName);
             // Auto-update map if it was previously generated
             if (mapGenerated)
@@ -2043,6 +2057,9 @@ int main()
         else if (command.rfind("softcopy ", 0) == 0)
         {
             std::string standName = command.substr(9);
+            //remove leading/trailing spaces
+            standName.erase(0, standName.find_first_not_of(" \t\n\r\f\v"));
+            standName.erase(standName.find_last_not_of(" \t\n\r\f\v") + 1);
             softStandCopy(configJson, standName);
             // Auto-update map if it was previously generated
             if (mapGenerated)
@@ -2053,6 +2070,9 @@ int main()
         else if (command.rfind("edit ", 0) == 0)
         {
             std::string standName = command.substr(5);
+            //remove leading/trailing spaces
+            standName.erase(0, standName.find_first_not_of(" \t\n\r\f\v"));
+            standName.erase(standName.find_last_not_of(" \t\n\r\f\v") + 1);
             editStand(configJson, standName);
             // Auto-update map if it was previously generated
             if (mapGenerated)
