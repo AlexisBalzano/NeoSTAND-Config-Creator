@@ -1222,7 +1222,7 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
             }
         }
 
-        std::cout << "Enter new use (current: " << (standJson.contains("Use") ? standJson["Use"].get<std::string>() : "none") << ", single character, empty to keep, r to remove): ";
+        std::cout << "Enter new use (current: " << (standJson.contains("Use") ? standJson["Use"].get<std::string>() : "none") << ", empty to keep, r to remove): ";
         std::string use;
         while (true)
         {
