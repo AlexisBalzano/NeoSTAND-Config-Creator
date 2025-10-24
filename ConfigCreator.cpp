@@ -21,7 +21,7 @@
     #endif
 #endif
 
-constexpr auto version = "v1.0.5";
+constexpr auto version = "v1.0.6";
 
 // Standard colors
 #define RESET "\033[0m"
@@ -1925,7 +1925,7 @@ const std::string banner = R"(
 /_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/
                                                                          
                                                                          
-version: 1.0.5)";
+version: 1.0.6)";
     std::cout << CYAN << banner << RESET << std::endl;
 }
 
