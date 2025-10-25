@@ -12,6 +12,7 @@ Helper CLI to create Ramp Agent config files
 - `batchcopy <sourceStand>` : copy existing stand settings to a list of stand + coordinates
 - `softcopy <sourceStand>` : copy existing stand settings but iterate through them so you can modify
 - `edit <standName>` : edit existing stand
+- `radius <standName>` : edit existing stand radius
 - `list` : list all stands
 - !`map` : generate HTML map visualization for debugging
 - `save` : save changes and exit

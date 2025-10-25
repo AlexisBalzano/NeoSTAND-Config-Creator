@@ -371,6 +371,7 @@ void printMenu()
     std::cout << " batchcopy <sourceStand> : copy existing stand settings to stand list provided" << std::endl;
     std::cout << " softcopy <sourceStand> : copy existing stand settings but iterate through them so you can modify" << std::endl;
     std::cout << " edit <standName> : edit existing stand" << std::endl;
+    std::cout << " radius <standName> : edit existing stand radius only" << std::endl;
     std::cout << " list : list all stands" << std::endl;
     std::cout << " map : generate HTML map visualization for debugging" << std::endl;
     std::cout << " save : save changes and exit" << std::endl;
@@ -996,6 +997,48 @@ void editStand(nlohmann::ordered_json &configJson, const std::string &standName)
             }
         }
         std::cout << GREEN << "Stand " << standNameUpper << " updated." << RESET;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << RED << "Stand " << standNameUpper << " does not exist." << RESET << std::endl;
+    }
+}
+
+void editStandRadius(nlohmann::ordered_json &configJson, const std::string &standName) {
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Editing radius for stand " << BLUE << BOLD << standNameUpper << RESET << std::endl;
+        printStandInfo(standJson);
+
+        std::string coordinatesStr = standJson["Coordinates"].get<std::string>();
+        size_t lastColon = coordinatesStr.find_last_of(':');
+        std::string coordinates = coordinatesStr.substr(0, lastColon);
+        std::string radius = (lastColon != std::string::npos) ? coordinatesStr.substr(lastColon + 1) : "";
+
+        std::cout << "Enter new radius (current: " << radius << "): ";
+        std::string radiusInput;
+        while (true)
+        {
+            std::getline(std::cin, radiusInput);
+            bool isPositiveNumber = !radiusInput.empty() && std::all_of(radiusInput.begin(), radiusInput.end(), ::isdigit);
+            if (radiusInput.empty() || !isPositiveNumber)
+            {
+                std::cout << RED << "Invalid radius format. Please enter a positive number." << RESET << std::endl;
+                std::cout << "Enter new radius (current: " << radius << "): ";
+                continue;
+            }
+            else
+            {
+                standJson["Coordinates"] = coordinates + ":" + radiusInput;
+                break;
+            }
+        }
+        std::cout << GREEN << "Stand " << standNameUpper << " radius updated." << RESET;
         printStandInfo(standJson);
         std::cout << std::endl;
     }
@@ -2074,6 +2117,19 @@ int main()
             standName.erase(0, standName.find_first_not_of(" \t\n\r\f\v"));
             standName.erase(standName.find_last_not_of(" \t\n\r\f\v") + 1);
             editStand(configJson, standName);
+            // Auto-update map if it was previously generated
+            if (mapGenerated)
+            {
+                generateMap(configJson, icao, false);
+            }
+        }
+        else if (command.rfind("radius ", 0) == 0)
+        {
+            std::string standName = command.substr(7);
+            //remove leading/trailing spaces
+            standName.erase(0, standName.find_first_not_of(" \t\n\r\f\v"));
+            standName.erase(standName.find_last_not_of(" \t\n\r\f\v") + 1);
+            editStandRadius(configJson, standName);
             // Auto-update map if it was previously generated
             if (mapGenerated)
             {
