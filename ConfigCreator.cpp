@@ -21,7 +21,7 @@
     #endif
 #endif
 
-constexpr auto version = "v1.0.6";
+constexpr auto version = "v1.0.7";
 
 // Standard colors
 #define RESET "\033[0m"
@@ -1949,7 +1949,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 }
 
 void printBanner() {
-const std::string banner = R"(                                                                         
+    std::string banner = R"(                                                                         
  ________________________________________________________________________
 /_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/
     ____  ___    __  _______     ___   _____________   ________          
@@ -1968,8 +1968,8 @@ const std::string banner = R"(
 /_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/_____/
                                                                          
                                                                          
-version: 1.0.6)";
-    std::cout << CYAN << banner << RESET << std::endl;
+)";
+    std::cout << CYAN << banner << "version: " << version << RESET << std::endl;
 }
 
 int init(nlohmann::ordered_json &configJson, bool& mapGenerated, std::string &icao) {
