@@ -261,6 +261,8 @@ bool getConfig(const std::string &icao, nlohmann::ordered_json &configJson, bool
 
         // Create default config
         configJson = {
+            {"$schema", "https://raw.githubusercontent.com/vaccfr/RampAgent-Config/main/.github/schema/airportConfig.schema.json"},
+            {"version", "v1.0.0"},
             {"ICAO", icao},
             {"Coordinates", coordinates},
             {"Stands", {}}};
