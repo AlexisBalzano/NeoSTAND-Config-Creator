@@ -21,7 +21,7 @@
     #endif
 #endif
 
-constexpr auto version = "v1.0.7";
+constexpr auto version = "v1.0.8";
 
 // Standard colors
 #define RESET "\033[0m"
@@ -148,6 +148,21 @@ std::vector<std::string> splitString(const std::string &str)
     {
         token.erase(std::remove_if(token.begin(), token.end(), ::isspace), token.end());
         std::transform(token.begin(), token.end(), token.begin(), ::toupper);
+        if (!token.empty())
+        {
+            result.push_back(token);
+        }
+    }
+    return result;
+}
+
+std::vector<std::string> splitRemark(const std::string &str)
+{
+    std::vector<std::string> result;
+    std::istringstream stream(str);
+    std::string token;
+    while (std::getline(stream, token, ','))
+    {
         if (!token.empty())
         {
             result.push_back(token);
@@ -426,6 +441,19 @@ void printStandInfo(const nlohmann::ordered_json &standJson)
         }
         std::cout << "|";
     }
+    if (standJson.contains("Remark"))
+    {
+        std::cout << " Remark: ";
+        for (const auto &[key, value] : standJson["Remark"].items())
+        {
+            std::cout << key << " : " << value << " ";
+        }
+        std::cout << "|";
+    }
+    if (standJson.contains("Wingspan"))
+    {
+        std::cout << " Wingspan: " << standJson["Wingspan"] << "m |";
+    }
     if (standJson.contains("Priority"))
     {
         std::cout << " Priority: " << standJson["Priority"] << "|";
@@ -652,6 +680,49 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             }
         }
 
+        std::cout << "Enter Remark (format \"Code\":\"Remark\", comma separated, optional): ";
+        std::string remarkInput;
+        std::getline(std::cin, remarkInput);
+        if (!remarkInput.empty())
+        {
+            std::vector<std::string> remarks = splitRemark(remarkInput);
+            if (!remarks.empty())
+            {
+                for (const auto &remark : remarks) {
+                    size_t colonPos = remark.find(':');
+                    std::string key = remark.substr(0, colonPos);
+                    key.erase(std::remove_if(key.begin(), key.end(), ::isspace), key.end());
+                    std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+                    std::string value = remark.substr(colonPos + 1);
+                    configJson["Stands"][standNameUpper]["Remark"][key] = value;
+                }
+            }
+        }
+
+        std::cout << "Enter max Wingspan (integer, optional): ";
+        std::string wingspanInput;
+        while (true)
+        {
+            std::getline(std::cin, wingspanInput);
+            if (!wingspanInput.empty())
+            {
+                try
+                {
+                    int wingspan = std::stoi(wingspanInput);
+                    configJson["Stands"][standNameUpper]["Wingspan"] = wingspan;
+                    break;
+                }
+                catch (const std::exception &e)
+                {
+                    std::cout << RED << "Invalid wingspan input." << RESET << std::endl;
+                    std::cout << "Enter wingspan (integer, optional): ";
+                    continue;
+                }
+            }
+            else
+                break;
+        }
+   
         std::cout << "Enter priority (integer, optional): ";
         std::string priorityInput;
         while (true)
@@ -940,6 +1011,87 @@ void editStand(nlohmann::ordered_json &configJson, const std::string &standName)
                     standJson.erase("Block");
                 }
                 break;
+            }
+        }
+
+        std::cout << "Enter new Remark (current: ";
+        if (standJson.contains("Remark"))
+        {
+            for (const auto &[key, value] : standJson["Remark"].items())
+            {
+                std::cout << key << " : " << value << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+        std::cout << ", format \"Code\":\"Remark\", comma separated, empty to keep, r to remove): ";
+        std::string remarkInput;
+        while (true)
+        {
+            std::getline(std::cin, remarkInput);
+            if (remarkInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (remarkInput == "r" || remarkInput == "R")
+            {
+                standJson.erase("Remark");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> remarks = splitRemark(remarkInput);
+                if (!remarks.empty())
+                {
+                    nlohmann::ordered_json newRemarks;
+                    for (const auto &remark : remarks) {
+                        size_t colonPos = remark.find(':');
+                        std::string key = remark.substr(0, colonPos);
+                        key.erase(std::remove_if(key.begin(), key.end(), ::isspace), key.end());
+                        std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+                        std::string value = remark.substr(colonPos + 1);
+                        newRemarks[key] = value;
+                    }
+                    standJson["Remark"] = newRemarks;
+                }
+                else
+                {
+                    standJson.erase("Remark");
+                }
+                break;
+            }
+        }
+
+        std::cout << "Enter new max Wingspan (current: " << (standJson.contains("Wingspan") ? std::to_string(standJson["Wingspan"].get<int>()) : "none") << ", integer, empty to keep, r to remove): ";
+        std::string wingspanInput;
+        while (true)
+        {
+            std::getline(std::cin, wingspanInput);
+            if (wingspanInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (wingspanInput == "r" || wingspanInput == "R")
+            {
+                standJson.erase("Wingspan");
+                break;
+            }
+            else
+            {
+                try
+                {
+                    int wingspan = std::stoi(wingspanInput);
+                    standJson["Wingspan"] = wingspan;
+                    break;
+                }
+                catch (const std::exception &e)
+                {
+                    std::cout << RED << "Invalid wingspan input." << RESET << std::endl;
+                    std::cout << "Enter new max Wingspan (integer, empty to keep/remove): ";
+                    continue;
+                }
             }
         }
 
@@ -1440,6 +1592,87 @@ void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standN
                     standJson.erase("Block");
                 }
                 break;
+            }
+        }
+
+        std::cout << "Enter new Remark (current: ";
+        if (standJson.contains("Remark"))
+        {
+            for (const auto &[key, value] : standJson["Remark"].items())
+            {
+                std::cout << key << " : " << value << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+        std::cout << ", format \"Code\":\"Remark\", comma separated, empty to keep, r to remove): ";
+        std::string remarkInput;
+        while (true)
+        {
+            std::getline(std::cin, remarkInput);
+            if (remarkInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (remarkInput == "r" || remarkInput == "R")
+            {
+                standJson.erase("Remark");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> remarks = splitRemark(remarkInput);
+                if (!remarks.empty())
+                {
+                    nlohmann::ordered_json newRemarks;
+                    for (const auto &remark : remarks) {
+                        size_t colonPos = remark.find(':');
+                        std::string key = remark.substr(0, colonPos);
+                        key.erase(std::remove_if(key.begin(), key.end(), ::isspace), key.end());
+                        std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+                        std::string value = remark.substr(colonPos + 1);
+                        newRemarks[key] = value;
+                    }
+                    standJson["Remark"] = newRemarks;
+                }
+                else
+                {
+                    standJson.erase("Remark");
+                }
+                break;
+            }
+        }
+
+        std::cout << "Enter new max Wingspan (current: " << (standJson.contains("Wingspan") ? std::to_string(standJson["Wingspan"].get<int>()) : "none") << ", integer, empty to keep, r to remove): ";
+        std::string wingspanInput;
+        while (true)
+        {
+            std::getline(std::cin, wingspanInput);
+            if (wingspanInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (wingspanInput == "r" || wingspanInput == "R")
+            {
+                standJson.erase("Wingspan");
+                break;
+            }
+            else
+            {
+                try
+                {
+                    int wingspan = std::stoi(wingspanInput);
+                    standJson["Wingspan"] = wingspan;
+                    break;
+                }
+                catch (const std::exception &e)
+                {
+                    std::cout << RED << "Invalid wingspan input." << RESET << std::endl;
+                    std::cout << "Enter new max Wingspan (integer, empty to keep/remove): ";
+                    continue;
+                }
             }
         }
 
