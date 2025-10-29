@@ -14,21 +14,18 @@ jobs:
     strategy:
       matrix:
         include:
+          - os: ubuntu-latest
+            artifact_name: neostand-configurator-linux
+            asset_name: neostand-configurator-linux
+            executable: ConfigCreator.exe
           - os: windows-latest
             artifact_name: neostand-configurator-windows-x64
             asset_name: neostand-configurator-windows-x64
-            build_command: g++ -std=c++17 -O2 -I. -static-libgcc -static-libstdc++ -static ConfigCreator.cpp -o ConfigCreator.exe
             executable: ConfigCreator.exe
           - os: macos-latest
-            artifact_name: neostand-configurator-macos-arm64
-            asset_name: neostand-configurator-macos-arm64
-            build_command: g++ -std=c++17 -O2 -I. -target arm64-apple-macos11 ConfigCreator.cpp -o ConfigCreator
-            executable: ConfigCreator
-          - os: macos-13
-            artifact_name: neostand-configurator-macos-x64
-            asset_name: neostand-configurator-macos-x64
-            build_command: g++ -std=c++17 -O2 -I. -target x86_64-apple-macos10.15 ConfigCreator.cpp -o ConfigCreator
-            executable: ConfigCreator
+            artifact_name: neostand-configurator-macos
+            asset_name: neostand-configurator-macos
+            executable: ConfigCreator.exe
 
     steps:
     - uses: actions/checkout@v4
@@ -37,7 +34,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential zip
+        sudo apt-get install -y build-essential zip make
 
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
@@ -47,6 +44,7 @@ jobs:
         update: true
         install: >-
           mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-make
           mingw-w64-x86_64-curl
 
     - name: Install Xcode Command Line Tools (macOS)
@@ -68,14 +66,14 @@ jobs:
         mkdir -p nlohmann
         curl -o nlohmann/json.hpp https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp
 
-    - name: Build (Linux/macOS)
+    - name: Build using Makefile
+      run: make
       if: matrix.os != 'windows-latest'
-      run: ${{ matrix.build_command }}
 
-    - name: Build (Windows)
+    - name: Build using Makefile (Windows)
       if: matrix.os == 'windows-latest'
       shell: msys2 {0}
-      run: ${{ matrix.build_command }}
+      run: make
 
     - name: Create configs directory
       run: mkdir -p configs
