@@ -466,9 +466,10 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             'Cargo': '#59A14F',
             'Military': '#E15759',
             'General': '#F28E2B',
-            'Maintenance': '#B07AA1'
+            'Maintenance': '#B07AA1',
+            'Default': '#96CEB4'
             };
-            var u = stand.Use || stand.use || 'default';
+            var u = stand.Use || stand.use || 'Default';
             if (map[u]) return map[u];
             // deterministic color by hashing the use string
             var hash = 0;
