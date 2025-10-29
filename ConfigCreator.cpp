@@ -40,8 +40,15 @@ static int initConfig(nlohmann::ordered_json &configJson, bool &mapGenerated, st
     mapGenerated = false;
     printBanner();
     std::cout << "Select config file (ICAO, if not found, new one is created): ";
-    std::getline(std::cin, icao);
-    std::transform(icao.begin(), icao.end(), icao.begin(), ::toupper);
+    while (true) {
+        std::getline(std::cin, icao);
+        if (icao.empty() || icao.length() != 4 || !std::all_of(icao.begin(), icao.end(), ::isalpha)) {
+            std::cout << RED << "Please enter a valid ICAO code: " << RESET;
+            continue;
+        }
+        std::transform(icao.begin(), icao.end(), icao.begin(), ::toupper);
+        break;
+    }
     if (!getConfig(icao, configJson, mapGenerated))
         return 1;
     std::cout << "JSON edition ready." << std::endl;
