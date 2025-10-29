@@ -49,11 +49,19 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                         totalLat += lat;
                         totalLon += lon;
                         // update bounds
-                        if (lat < minLat) minLat = lat;
-                        if (lat > maxLat) maxLat = lat;
-                        if (lon < minLon) minLon = lon;
-                        if (lon > maxLon) maxLon = lon;
-                        if (validStands == 0) { firstLat = lat; firstLon = lon; }
+                        if (lat < minLat)
+                            minLat = lat;
+                        if (lat > maxLat)
+                            maxLat = lat;
+                        if (lon < minLon)
+                            minLon = lon;
+                        if (lon > maxLon)
+                            maxLon = lon;
+                        if (validStands == 0)
+                        {
+                            firstLat = lat;
+                            firstLon = lon;
+                        }
                         validStands++;
                     }
                     catch (...)
@@ -63,8 +71,8 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             }
         }
 
-    centerLat = validStands > 0 ? totalLat / validStands : 47.009279;
-    centerLon = validStands > 0 ? totalLon / validStands : 3.765732;
+        centerLat = validStands > 0 ? totalLat / validStands : 47.009279;
+        centerLon = validStands > 0 ? totalLon / validStands : 3.765732;
         // (Stand JS generation moved into the HTML <script> block below.)
         // Generate timestamp for JavaScript use
         auto now = std::chrono::system_clock::now();
@@ -104,26 +112,16 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             maxZoom: 19  // Set tile layer max zoom
         }).addTo(map);
         
-        // Add OpenStreetMap overlay for airport details
-        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            opacity: 0.3,
-            maxZoom: 19  // OSM has lower max zoom
-        }).addTo(map);
-        
         // Store references to current stands for cleanup
         var currentStandElements = [];
         
         // Color function for different stand types
+        //TODO: need to take a parameter for different filters
         function getStandColor(standData) {
             if (standData.Apron) return '#FF6B6B';  // Red for apron
             if (standData.Schengen === false) return '#4ECDC4';  // Teal for non-Schengen
             if (standData.Schengen === true) return '#45B7D1';   // Blue for Schengen
             return '#96CEB4';  // Green for default
-        }
-        
-        function getStandOpacity(standData) {
-            return standData.Use ? 0.4 : 0.2;
         }
 )";
 
@@ -170,7 +168,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                             htmlFile << "            radius: " << radius << ",\n";
                             htmlFile << "            color: getStandColor(stand_" << standNameVar << "),\n";
                             htmlFile << "            fillColor: getStandColor(stand_" << standNameVar << "),\n";
-                            htmlFile << "            fillOpacity: getStandOpacity(stand_" << standNameVar << ")\n";
+                            htmlFile << "            fillOpacity: 0.4\n";
                             htmlFile << "        }).addTo(map);\n";
                             htmlFile << "        currentStandElements.push(circle_" << standNameVar << ");\n";
 
@@ -277,12 +275,17 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         }
 
         // Emit JS to adjust view to include all stands (fitBounds) or center on single stand
-        if (validStands == 0) {
+        if (validStands == 0)
+        {
             // keep default center/zoom
-        } else if (validStands == 1) {
+        }
+        else if (validStands == 1)
+        {
             htmlFile << "        // Center on single stand\n";
             htmlFile << "        map.setView([" << firstLat << ", " << firstLon << "], 16);\n";
-        } else {
+        }
+        else
+        {
             htmlFile << "        // Fit map to bounds covering all stands\n";
             htmlFile << "        var bounds = L.latLngBounds([ [" << minLat << ", " << minLon << "], [" << maxLat << ", " << maxLon << "] ]);\n";
             htmlFile << "        map.fitBounds(bounds, { padding: [80, 80] });\n";
@@ -290,6 +293,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 
         htmlFile << R"(        
         // Add legend
+        //TODO: make legend dynamic based on current color configuration
         var legend = L.control({position: 'topright'});
         legend.onAdd = function (map) {
             var div = L.DomUtil.create('div', 'legend');
@@ -367,14 +371,169 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             
             document.body.removeChild(textArea);
         }
-        
-        // Add layer control
-        var baseMaps = {
-            "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
-            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
-        };
-        L.control.layers(baseMaps).addTo(map);
-        
+
+        //TODO: use layer control to select different stand color coding
+        // Options be like : Priority, Schengen, Apron, Use
+        /* Color-mode control UI */
+        (function() {
+            // Create control container
+            var controlBtn = document.createElement('div');
+            controlBtn.style.cssText = 'position:fixed;right:12px;top:50%;transform:translateY(-50%);z-index:10001;';
+            document.body.appendChild(controlBtn);
+
+            // Button
+            var toggleBtn = document.createElement('button');
+            toggleBtn.innerHTML = '🎨 Colors';
+            toggleBtn.title = 'Change stand coloring';
+            toggleBtn.style.cssText = 'background:#ffffffaa;border:1px solid rgba(0,0,0,0.15);padding:8px 10px;border-radius:6px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+            controlBtn.appendChild(toggleBtn);
+
+            // Sliding panel
+            var panel = document.createElement('div');
+            panel.style.cssText = 'position:fixed;right:12px;top:50%;transform:translateY(-50%) translateX(110%);width:260px;z-index:10002;background:#fff;border:1px solid rgba(0,0,0,0.12);box-shadow:0 6px 20px rgba(0,0,0,0.12);padding:12px;border-radius:8px;transition:transform 0.25s ease;max-height:70vh;overflow:auto;font-family:Arial,sans-serif;';
+            panel.innerHTML = '<strong>Color stands by</strong><br/><small style="color:#666">Choose a mode to recolor visible stands</small><hr style="margin:8px 0"/>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="default" checked/> Default</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="schengen" /> Schengen / Non-Schengen</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="apron" /> Apron / Stand</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="use" /> Use (categorical)</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="priority" /> Priority (gradient)</label>' +
+                              '<hr style="margin:8px 0"/>' +
+                              '<div id="colorModeInfo" style="font-size:12px;color:#444">Current: Default</div>';
+            document.body.appendChild(panel);
+
+            var open = false;
+            toggleBtn.addEventListener('click', function() {
+                open = !open;
+                panel.style.transform = open ? 'translateY(-50%) translateX(0)' : 'translateY(-50%) translateX(110%)';
+            });
+
+            // Close panel when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!panel.contains(e.target) && !toggleBtn.contains(e.target) && open) {
+                    open = false;
+                    panel.style.transform = 'translateY(-50%) translateX(110%)';
+                }
+            });
+
+            // Utility: HSL gradient for priority (green->yellow->red)
+            function colorForPriority(p) {
+                if (p === undefined || p === null || isNaN(p)) return '#96CEB4';
+                var v = Number(p);
+                v = Math.max(0, Math.min(100, v)); // clamp 0..100
+                var t = v / 100; // 0..1
+                var hue = (1 - t) * 120; // 120 (green) -> 0 (red)
+                return 'hsl(' + Math.round(hue) + ',70%,50%)';
+            }
+
+            // Build a set of stands by inspecting global vars like stand_<name>
+            function collectStands() {
+                var list = [];
+                for (var k in window) {
+                    if (!Object.prototype.hasOwnProperty.call(window, k)) continue;
+                    if (k.indexOf('stand_') === 0) {
+                        try {
+                            var stand = window[k];
+                            var shortName = k.substring(6); // suffix used for circle_ and marker_
+                            var circle = window['circle_' + shortName];
+                            var marker = window['marker_' + shortName];
+                            // Only include if a circle exists
+                            if (circle) {
+                                list.push({ id: shortName, stand: stand, circle: circle, marker: marker });
+                            }
+                        } catch (e) {
+                            // ignore
+                        }
+                    }
+                }
+                return list;
+            }
+
+            // Determine color by selected mode
+            function determineColor(mode, stand) {
+                if (!mode) mode = 'default';
+                mode = mode.toLowerCase();
+                if (mode === 'default') {
+                    // fallback to existing logic (keeps original colors)
+                    try { return getStandColor(stand); } catch (e) { return '#96CEB4'; }
+                }
+                if (mode === 'schengen') {
+                    if (stand.Schengen === false) return '#4ECDC4';
+                    if (stand.Schengen === true) return '#45B7D1';
+                    return '#96CEB4';
+                }
+                if (mode === 'apron') {
+                    return stand.Apron ? '#FF6B6B' : '#96CEB4';
+                }
+                if (mode === 'use') {
+                    // categorical mapping for common uses. New categories get assigned deterministic colors.
+                    var map = {
+                        'Commercial': '#4E79A7',
+                        'Cargo': '#59A14F',
+                        'Military': '#E15759',
+                        'General': '#F28E2B',
+                        'Maintenance': '#B07AA1'
+                    };
+                    var u = stand.Use || stand.use || 'default';
+                    if (map[u]) return map[u];
+                    // deterministic color by hashing the use string
+                    var hash = 0;
+                    for (var i = 0; i < u.length; i++) hash = (hash << 5) - hash + u.charCodeAt(i);
+                    var hue = Math.abs(hash) % 360;
+                    return 'hsl(' + hue + ',65%,55%)';
+                }
+                if (mode === 'priority') {
+                    var p = stand.Priority;
+                    return colorForPriority(p);
+                }
+                return '#96CEB4';
+            }
+
+            // Apply coloring to map elements
+            function applyColoring(mode) {
+                var items = collectStands();
+                items.forEach(function(it) {
+                    try {
+                        var c = determineColor(mode, it.stand);
+                        // Set style on circle
+                        if (it.circle && typeof it.circle.setStyle === 'function') {
+                            it.circle.setStyle({ color: c, fillColor: c, fillOpacity: 0.45 });
+                        }
+                        // Optionally adjust marker background (small square around label)
+                        if (it.marker && it.marker._icon) {
+                            // try to find the inner div and adjust its background-color
+                            var inner = it.marker._icon.querySelector('div');
+                            if (inner) inner.style.backgroundColor = c;
+                        }
+                    } catch (e) {
+                        console.error('Failed coloring stand', it.id, e);
+                    }
+                });
+
+                // Update info text
+                var info = document.getElementById('colorModeInfo');
+                if (info) info.innerText = 'Current: ' + (mode.charAt(0).toUpperCase() + mode.slice(1));
+            }
+
+            // Wire radio buttons
+            var radios = panel.querySelectorAll('input[name="colorMode"]');
+            radios.forEach(function(r) {
+                r.addEventListener('change', function(e) {
+                    applyColoring(e.target.value);
+                });
+            });
+
+            // Initial apply (default)
+            setTimeout(function() { applyColoring('default'); }, 50);
+
+            // Expose quick API for console debugging
+            window.__mapColoring = {
+                apply: applyColoring,
+                collect: collectStands,
+                colorForPriority: colorForPriority
+            };
+        })();
+
+
         // Live reload system for localhost server
         if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
             console.log('🔄 Live reload enabled - monitoring for changes');
