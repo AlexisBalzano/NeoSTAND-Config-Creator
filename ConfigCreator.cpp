@@ -32,7 +32,7 @@ static void printBanner()
                                                                          
                                                                          
 )";
-    std::cout << CYAN << banner << "version: " << version << RESET << std::endl;
+    std::cout << CYAN << banner << BOLD << "version: " << version << RESET << std::endl;
 }
 
 static int initConfig(nlohmann::ordered_json &configJson, bool &mapGenerated, std::string &icao)

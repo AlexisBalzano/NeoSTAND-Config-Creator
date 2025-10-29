@@ -116,11 +116,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         var currentStandElements = [];
         
         // Color function for different stand types
-        //TODO: need to take a parameter for different filters
         function getStandColor(standData) {
-            if (standData.Apron) return '#FF6B6B';  // Red for apron
-            if (standData.Schengen === false) return '#4ECDC4';  // Teal for non-Schengen
-            if (standData.Schengen === true) return '#45B7D1';   // Blue for Schengen
             return '#96CEB4';  // Green for default
         }
 )";
@@ -153,13 +149,19 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                             htmlFile << "            lon: " << lon << ",\n";
                             htmlFile << "            radius: " << radius << ",\n";
                             if (standData.contains("Code"))
-                                htmlFile << "            code: '" << standData["Code"] << "',\n";
+                                htmlFile << "            Code: '" << standData["Code"] << "',\n";
                             if (standData.contains("Use"))
-                                htmlFile << "            use: '" << standData["Use"] << "',\n";
+                                htmlFile << "            Use: '" << standData["Use"] << "',\n";
                             if (standData.contains("Schengen"))
                                 htmlFile << "            Schengen: " << (standData["Schengen"].get<bool>() ? "true" : "false") << ",\n";
                             if (standData.contains("Apron"))
                                 htmlFile << "            Apron: " << (standData["Apron"].get<bool>() ? "true" : "false") << ",\n";
+                            if (standData.contains("Remark"))
+                                htmlFile << "            Remark: '" << standData["Remark"] << "',\n";
+                            if (standData.contains("Wingspan"))
+                                htmlFile << "            Wingspan: '" << standData["Wingspan"] << "',\n";
+                            if (standData.contains("Callsigns"))
+                                htmlFile << "            Callsigns: '" << standData["Callsigns"] << "',\n";
                             if (standData.contains("Priority"))
                                 htmlFile << "            Priority: " << standData["Priority"] << ",\n";
                             htmlFile << "        };\n";
@@ -392,11 +394,16 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             var panel = document.createElement('div');
             panel.style.cssText = 'position:fixed;right:12px;top:50%;transform:translateY(-50%) translateX(110%);width:260px;z-index:10002;background:#fff;border:1px solid rgba(0,0,0,0.12);box-shadow:0 6px 20px rgba(0,0,0,0.12);padding:12px;border-radius:8px;transition:transform 0.25s ease;max-height:70vh;overflow:auto;font-family:Arial,sans-serif;';
             panel.innerHTML = '<strong>Color stands by</strong><br/><small style="color:#666">Choose a mode to recolor visible stands</small><hr style="margin:8px 0"/>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="default" checked/> Default</label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="schengen" /> Schengen / Non-Schengen</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="default" checked/> Default </label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="schengen" checked/> Schengen / Non-Schengen</label>' +
                               '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="apron" /> Apron / Stand</label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="use" /> Use (categorical)</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="use" /> Use </label>' +
                               '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="priority" /> Priority (gradient)</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="codeHighest" /> Code (highest)</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="codeAll" /> Code (All)</label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="remark" /> Remark / no Remark </label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="wingspan" /> Wingspan / no Wingspan </label>' +
+                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="callsign" /> Callsign / no Callsign </label>' +
                               '<hr style="margin:8px 0"/>' +
                               '<div id="colorModeInfo" style="font-size:12px;color:#444">Current: Default</div>';
             document.body.appendChild(panel);
@@ -450,14 +457,11 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 
             // Determine color by selected mode
             function determineColor(mode, stand) {
-                if (!mode) mode = 'default';
-                mode = mode.toLowerCase();
                 if (mode === 'default') {
-                    // fallback to existing logic (keeps original colors)
-                    try { return getStandColor(stand); } catch (e) { return '#96CEB4'; }
+                    return '#96CEB4';
                 }
                 if (mode === 'schengen') {
-                    if (stand.Schengen === false) return '#4ECDC4';
+                    if (stand.Schengen === false) return '#4e70cdff';
                     if (stand.Schengen === true) return '#45B7D1';
                     return '#96CEB4';
                 }
@@ -484,6 +488,34 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                 if (mode === 'priority') {
                     var p = stand.Priority;
                     return colorForPriority(p);
+                }
+                if (mode === 'codeHighest') {
+                    if (!stand.Code) return '#96CEB4';
+                    var code = stand.Code.toString().toUpperCase();
+                    var highestChar = 0;
+                    for (var i = 0; i < code.length; i++) {
+                        var c = code.charCodeAt(i);
+                        if (c > highestChar) highestChar = c;
+                    }
+                    var hue = highestChar % 360;
+                    return 'hsl(' + hue + ',65%,55%)';
+                }
+                if (mode === 'codeAll') {
+                    if (!stand.Code) return '#96CEB4';
+                    var code = stand.Code.toString().toUpperCase();
+                    var hash = 0;
+                    for (var i = 0; i < code.length; i++) hash = (hash << 5) - hash + code.charCodeAt(i);
+                    var hue = Math.abs(hash) % 360;
+                    return 'hsl(' + hue + ',65%,55%)';
+                }
+                if (mode === 'remark') {
+                    return stand.Remark ? '#FFB347' : '#96CEB4';
+                }
+                if (mode === 'wingspan') {
+                    return stand.Wingspan ? '#FFB347' : '#96CEB4';
+                }
+                if (mode === 'callsign') {
+                    return (stand.Callsigns && stand.Callsigns.length > 0) ? '#FFB347' : '#96CEB4';
                 }
                 return '#96CEB4';
             }
