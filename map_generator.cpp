@@ -293,7 +293,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             htmlFile << "        map.fitBounds(bounds, { padding: [80, 80] });\n";
         }
 
-        htmlFile << R"(        
+        htmlFile << R"(
         
         // Add click event to copy coordinates to clipboard
         map.on('click', function(e) {
@@ -303,25 +303,25 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             
             // Copy to clipboard
             if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(coordString).then(function() {
-                    // Show temporary popup at click location
-                    var popup = L.popup()
-                        .setLatLng(e.latlng)
-                        .setContent('<div style="text-align: center;"><strong>Coordinates copied!</strong><br>' + coordString + '</div>')
-                        .openOn(map);
-                    
-                    // Auto-close popup after 2 seconds
-                    setTimeout(function() {
-                        map.closePopup(popup);
-                    }, 2000);
-                }).catch(function(err) {
-                    console.error('Failed to copy coordinates: ', err);
-                    // Fallback method
-                    fallbackCopyTextToClipboard(coordString, e.latlng);
-                });
+            navigator.clipboard.writeText(coordString).then(function() {
+            // Show temporary popup at click location
+            var popup = L.popup()
+            .setLatLng(e.latlng)
+            .setContent('<div style="text-align: center;"><strong>Coordinates copied!</strong><br>' + coordString + '</div>')
+            .openOn(map);
+            
+            // Auto-close popup after 2 seconds
+            setTimeout(function() {
+            map.closePopup(popup);
+            }, 2000);
+            }).catch(function(err) {
+            console.error('Failed to copy coordinates: ', err);
+            // Fallback method
+            fallbackCopyTextToClipboard(coordString, e.latlng);
+            });
             } else {
-                // Fallback for older browsers
-                fallbackCopyTextToClipboard(coordString, e.latlng);
+            // Fallback for older browsers
+            fallbackCopyTextToClipboard(coordString, e.latlng);
             }
         });
         
@@ -340,19 +340,19 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             textArea.select();
             
             try {
-                var successful = document.execCommand('copy');
-                var popup = L.popup()
-                    .setLatLng(latlng)
-                    .setContent('<div style="text-align: center;"><strong>' + 
-                               (successful ? 'Coordinates copied!' : 'Copy failed - please copy manually') + 
-                               '</strong><br>' + text + '</div>')
-                    .openOn(map);
-                
-                setTimeout(function() {
-                    map.closePopup(popup);
-                }, 2000);
+            var successful = document.execCommand('copy');
+            var popup = L.popup()
+            .setLatLng(latlng)
+            .setContent('<div style="text-align: center;"><strong>' + 
+                   (successful ? 'Coordinates copied!' : 'Copy failed - please copy manually') + 
+                   '</strong><br>' + text + '</div>')
+            .openOn(map);
+            
+            setTimeout(function() {
+            map.closePopup(popup);
+            }, 2000);
             } catch (err) {
-                console.error('Fallback: Oops, unable to copy', err);
+            console.error('Fallback: Oops, unable to copy', err);
             }
             
             document.body.removeChild(textArea);
@@ -376,164 +376,304 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             var panel = document.createElement('div');
             panel.style.cssText = 'position:fixed;right:12px;top:50%;transform:translateY(-50%) translateX(110%);width:260px;z-index:10002;background:#fff;border:1px solid rgba(0,0,0,0.12);box-shadow:0 6px 20px rgba(0,0,0,0.12);padding:12px;border-radius:8px;transition:transform 0.25s ease;max-height:70vh;overflow:auto;font-family:Arial,sans-serif;';
             panel.innerHTML = '<strong>Color stands by</strong><br/><small style="color:#666">Choose a mode to recolor visible stands</small><hr style="margin:8px 0"/>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="default" checked/> Default </label>' +
-                      '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="schengen"/> Schengen / Non-Schengen</label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="apron" /> Apron / Stand</label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="use" /> Use </label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="priority" /> Priority (gradient)</label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="codeHighest" /> Code (highest)</label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="codeAll" /> Code (All)</label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="remark" /> Remark / no Remark </label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="wingspan" /> Wingspan / no Wingspan </label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="callsign" /> Callsign / no Callsign </label>' +
-                              '<hr style="margin:8px 0"/>' +
-                              '<div id="colorModeInfo" style="font-size:12px;color:#444">Current: Default</div>';
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="default" checked/> Default </label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="schengen"/> Schengen / Non-Schengen</label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="apron" /> Apron / Stand</label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="use" /> Use </label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="priority" /> Priority (gradient)</label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="codeHighest" /> Code (highest)</label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="codeAll" /> Code (All)</label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="remark" /> Remark / no Remark </label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="wingspan" /> Wingspan / no Wingspan </label>' +
+                  '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="callsign" /> Callsign / no Callsign </label>' +
+                  '<hr style="margin:8px 0"/>' +
+                  '<div id="colorModeInfo" style="font-size:12px;color:#444">Current: Default</div>';
             document.body.appendChild(panel);
 
             var open = false;
             toggleBtn.addEventListener('click', function() {
-                open = !open;
-                panel.style.transform = open ? 'translateY(-50%) translateX(0)' : 'translateY(-50%) translateX(110%)';
+            open = !open;
+            panel.style.transform = open ? 'translateY(-50%) translateX(0)' : 'translateY(-50%) translateX(110%)';
             });
 
             // Close panel when clicking outside
             document.addEventListener('click', function(e) {
-                if (!panel.contains(e.target) && !toggleBtn.contains(e.target) && open) {
-                    open = false;
-                    panel.style.transform = 'translateY(-50%) translateX(110%)';
-                }
+            if (!panel.contains(e.target) && !toggleBtn.contains(e.target) && open) {
+            open = false;
+            panel.style.transform = 'translateY(-50%) translateX(110%)';
+            }
             });
 
-            // Utility: HSL gradient for priority (green->yellow->red)
+            // Utility: HSL gradient for priority (-100..100) => blue (240) -> green (120) -> red (0)
             function colorForPriority(p) {
-                if (p === undefined || p === null || isNaN(p)) return '#96CEB4';
-                var v = Number(p);
-                v = Math.max(0, Math.min(100, v)); // clamp 0..100
-                var t = v / 100; // 0..1
-                var hue = (1 - t) * 120; // 120 (green) -> 0 (red)
-                return 'hsl(' + Math.round(hue) + ',70%,50%)';
+            if (p === undefined || p === null || isNaN(p)) return '#96CEB4';
+            var v = Number(p);
+            // Clamp to -100..100
+            v = Math.max(-100, Math.min(100, v));
+            // Normalize to 0..1 where -100 => 0, 0 => 0.5, 100 => 1
+            var t = (v + 100) / 200;
+            // Map to hue: 240 (blue) -> 120 (green) -> 0 (red)
+            var hue = 240 * (1 - t);
+            return 'hsl(' + Math.round(hue) + ',70%,50%)';
             }
 
             // Build a set of stands by inspecting global vars like stand_<name>
             function collectStands() {
-                var list = [];
-                for (var k in window) {
-                    if (!Object.prototype.hasOwnProperty.call(window, k)) continue;
-                    if (k.indexOf('stand_') === 0) {
-                        try {
-                            var stand = window[k];
-                            var shortName = k.substring(6); // suffix used for circle_ and marker_
-                            var circle = window['circle_' + shortName];
-                            var marker = window['marker_' + shortName];
-                            // Only include if a circle exists
-                            if (circle) {
-                                list.push({ id: shortName, stand: stand, circle: circle, marker: marker });
-                            }
-                        } catch (e) {
-                            // ignore
-                        }
-                    }
+            var list = [];
+            for (var k in window) {
+            if (!Object.prototype.hasOwnProperty.call(window, k)) continue;
+            if (k.indexOf('stand_') === 0) {
+            try {
+                var stand = window[k];
+                var shortName = k.substring(6); // suffix used for circle_ and marker_
+                var circle = window['circle_' + shortName];
+                var marker = window['marker_' + shortName];
+                // Only include if a circle exists
+                if (circle) {
+                list.push({ id: shortName, stand: stand, circle: circle, marker: marker });
                 }
-                return list;
+            } catch (e) {
+                // ignore
+            }
+            }
+            }
+            return list;
             }
 
             // Determine color by selected mode
             function determineColor(mode, stand) {
-                if (mode === 'default') {
-                    return '#96CEB4';
+            if (mode === 'default') {
+            return '#96CEB4';
+            }
+            if (mode === 'schengen') {
+            if (stand.Schengen === false) return '#4e70cdff';
+            if (stand.Schengen === true) return '#45B7D1';
+            return '#96CEB4';
+            }
+            if (mode === 'apron') {
+            return stand.Apron ? '#FF6B6B' : '#96CEB4';
+            }
+            if (mode === 'use') {
+            // categorical mapping for common uses. New categories get assigned deterministic colors.
+            var map = {
+            'Commercial': '#4E79A7',
+            'Cargo': '#59A14F',
+            'Military': '#E15759',
+            'General': '#F28E2B',
+            'Maintenance': '#B07AA1'
+            };
+            var u = stand.Use || stand.use || 'default';
+            if (map[u]) return map[u];
+            // deterministic color by hashing the use string
+            var hash = 0;
+            for (var i = 0; i < u.length; i++) hash = (hash << 5) - hash + u.charCodeAt(i);
+            var hue = Math.abs(hash) % 360;
+            return 'hsl(' + hue + ',65%,55%)';
+            }
+            if (mode === 'priority') {
+            var p = stand.Priority;
+            return colorForPriority(p);
+            }
+            if (mode === 'codeHighest') {
+            if (!stand.Code) return '#96CEB4';
+            var code = stand.Code.toString().toUpperCase();
+            var highestChar = 0;
+            for (var i = 0; i < code.length; i++) {
+                var c = code.charCodeAt(i);
+                if (c > highestChar) highestChar = c;
+            }
+            var hue = (highestChar * 37) % 360; // arbitrary multiplier for distribution
+            return 'hsl(' + hue + ',65%,55%)';
+            }
+            if (mode === 'codeAll') {
+            if (!stand.Code) return '#96CEB4';
+            var code = stand.Code.toString().toUpperCase();
+            var hash = 0;
+            for (var i = 0; i < code.length; i++) hash = (hash << 5) - hash + code.charCodeAt(i);
+            var hue = Math.abs(hash) % 360;
+            return 'hsl(' + hue + ',65%,55%)';
+            }
+            if (mode === 'remark') {
+            return stand.Remark ? '#FFB347' : '#96CEB4';
+            }
+            if (mode === 'wingspan') {
+            return stand.Wingspan ? '#FFB347' : '#96CEB4';
+            }
+            if (mode === 'callsign') {
+            return (stand.Callsigns && stand.Callsigns.length > 0) ? '#FFB347' : '#96CEB4';
+            }
+            return '#96CEB4';
+            }
+
+            // Create legend control (top-right)
+            var legend = L.control({ position: 'topright' });
+            var legendDiv = null;
+            legend.onAdd = function(map) {
+            legendDiv = L.DomUtil.create('div', 'info legend');
+            legendDiv.style.cssText = 'background:white;padding:8px;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.15);font-size:12px;max-width:260px;max-height:40vh;overflow:auto;';
+            legendDiv.innerHTML = '<strong style="display:block;margin-bottom:6px;">Legend</strong><div id="legendContent" style="line-height:1.3"></div>';
+            return legendDiv;
+            };
+            legend.addTo(map);
+
+            // Build HTML for a swatch+label
+            function swatchHTML(color, label) {
+            return '<div style="display:flex;align-items:center;margin:4px 0;"><span style="width:18px;height:14px;background:' + color + ';border:1px solid rgba(0,0,0,0.15);margin-right:8px;display:inline-block;border-radius:2px;"></span><span style="flex:1;word-break:break-word;">' + label + '</span></div>';
+            }
+
+            // Update legend based on current mode and available stands
+            function updateLegend(mode, items) {
+            var content = document.getElementById('legendContent');
+            if (!content) return;
+            content.innerHTML = ''; // clear
+
+            if (!items || items.length === 0) {
+            content.innerHTML = '<div style="color:#666">No stands found</div>';
+            return;
+            }
+
+            // Helper: collect unique keys/values
+            function unique(arr) {
+            return Array.from(new Set(arr));
+            }
+
+            if (mode === 'default') {
+            content.innerHTML = swatchHTML(determineColor('default', {}), 'Stands');
+            return;
+            }
+
+            if (mode === 'schengen') {
+            content.innerHTML += swatchHTML('#45B7D1', 'Schengen');
+            content.innerHTML += swatchHTML('#4e70cdff', 'Non-Schengen');
+            content.innerHTML += swatchHTML('#96CEB4', 'Either');
+            return;
+            }
+
+            if (mode === 'apron') {
+            content.innerHTML += swatchHTML('#FF6B6B', 'Apron');
+            content.innerHTML += swatchHTML('#96CEB4', 'Stand');
+            return;
+            }
+
+            if (mode === 'remark' || mode === 'wingspan' || mode === 'callsign') {
+            var yesColor = '#FFB347';
+            var noColor = '#96CEB4';
+            var yesLabel = (mode === 'remark') ? 'Has Remark' : (mode === 'wingspan' ? 'Has Wingspan' : 'Has Callsign(s)');
+            content.innerHTML += swatchHTML(yesColor, yesLabel);
+            content.innerHTML += swatchHTML(noColor, 'None');
+            return;
+            }
+
+            if (mode === 'priority') {
+            // find min/max priority values present
+            var vals = items.map(function(it) { return (it.stand && it.stand.Priority != null) ? Number(it.stand.Priority) : NaN; }).filter(function(v){ return !isNaN(v); });
+            var min = vals.length ? Math.min.apply(null, vals) : -100;
+            var max = vals.length ? Math.max.apply(null, vals) : 100;
+            var grad = 'linear-gradient(90deg, ' + colorForPriority(min) + ' 0%,' + colorForPriority((min+max)/2) + ' 50%,' + colorForPriority(max) + ' 100%)';
+            content.innerHTML += '<div style="display:flex;flex-direction:column;"><div style="height:14px;border-radius:4px;border:1px solid rgba(0,0,0,0.06);background:' + grad + ';margin-bottom:6px;"></div><div style="font-size:11px;color:#333;">Priority range: ' + min + ' — ' + max + ' (-100..100)</div></div>';
+            return;
+            }
+
+            if (mode === 'use') {
+            // collect distinct uses
+            var uses = items.map(function(it){ return (it.stand && (it.stand.Use || it.stand.use)) ? (it.stand.Use || it.stand.use) : 'N/A'; });
+            uses = unique(uses);
+            uses.forEach(function(u){
+            var color = determineColor('use', { Use: u });
+            content.innerHTML += swatchHTML(color, u);
+            });
+            return;
+            }
+            
+            if (mode === 'codeHighest') {
+            // collect distinct highest chars
+            var codes = items.map(function(it){
+            if (it.stand && it.stand.Code) {
+                var code = it.stand.Code.toString().toUpperCase();
+                var highestChar = 0;
+                for (var i = 0; i < code.length; i++) {
+                var c = code.charCodeAt(i);
+                if (c > highestChar) highestChar = c;
                 }
-                if (mode === 'schengen') {
-                    if (stand.Schengen === false) return '#4e70cdff';
-                    if (stand.Schengen === true) return '#45B7D1';
-                    return '#96CEB4';
-                }
-                if (mode === 'apron') {
-                    return stand.Apron ? '#FF6B6B' : '#96CEB4';
-                }
-                if (mode === 'use') {
-                    // categorical mapping for common uses. New categories get assigned deterministic colors.
-                    var map = {
-                        'Commercial': '#4E79A7',
-                        'Cargo': '#59A14F',
-                        'Military': '#E15759',
-                        'General': '#F28E2B',
-                        'Maintenance': '#B07AA1'
-                    };
-                    var u = stand.Use || stand.use || 'default';
-                    if (map[u]) return map[u];
-                    // deterministic color by hashing the use string
-                    var hash = 0;
-                    for (var i = 0; i < u.length; i++) hash = (hash << 5) - hash + u.charCodeAt(i);
-                    var hue = Math.abs(hash) % 360;
-                    return 'hsl(' + hue + ',65%,55%)';
-                }
-                if (mode === 'priority') {
-                    var p = stand.Priority;
-                    return colorForPriority(p);
-                }
-                if (mode === 'codeHighest') {
-                    if (!stand.Code) return '#96CEB4';
-                    var code = stand.Code.toString().toUpperCase();
-                    var highestChar = 0;
-                    for (var i = 0; i < code.length; i++) {
-                        var c = code.charCodeAt(i);
-                        if (c > highestChar) highestChar = c;
-                    }
-                    var hue = highestChar % 360;
-                    return 'hsl(' + hue + ',65%,55%)';
-                }
-                if (mode === 'codeAll') {
-                    if (!stand.Code) return '#96CEB4';
-                    var code = stand.Code.toString().toUpperCase();
-                    var hash = 0;
-                    for (var i = 0; i < code.length; i++) hash = (hash << 5) - hash + code.charCodeAt(i);
-                    var hue = Math.abs(hash) % 360;
-                    return 'hsl(' + hue + ',65%,55%)';
-                }
-                if (mode === 'remark') {
-                    return stand.Remark ? '#FFB347' : '#96CEB4';
-                }
-                if (mode === 'wingspan') {
-                    return stand.Wingspan ? '#FFB347' : '#96CEB4';
-                }
-                if (mode === 'callsign') {
-                    return (stand.Callsigns && stand.Callsigns.length > 0) ? '#FFB347' : '#96CEB4';
-                }
-                return '#96CEB4';
+                return String.fromCharCode(highestChar);
+            }
+            return null;
+            }).filter(function(c){ return c !== null; });
+            codes = unique(codes);
+            codes.forEach(function(code){
+            var color = determineColor('codeHighest', { Code: code });
+            content.innerHTML += swatchHTML(color, 'Highest char: ' + code);
+            });
+            return;
+            }
+
+            if (mode === 'codeAll') {
+            // collect distinct codes
+            var codes = items.map(function(it){ return (it.stand && it.stand.Code) ? it.stand.Code.toString() : null; }).filter(function(c){ return c !== null; });
+            codes = unique(codes);
+            if (codes.length === 0) {
+            content.innerHTML = '<div style="color:#666">No Code values found</div>';
+            return;
+            }
+            // limit to reasonable number to avoid huge legend
+            var maxEntries = 100;
+            codes.slice(0, maxEntries).forEach(function(code){
+            var color = determineColor(mode, { Code: code });
+            content.innerHTML += swatchHTML(color, 'Code: ' + code);
+            });
+            if (codes.length > maxEntries) {
+            content.innerHTML += '<div style="color:#666;font-size:11px;margin-top:6px;">... ' + (codes.length - maxEntries) + ' more entries omitted</div>';
+            }
+            return;
+            }
+
+            // fallback: try to show a few items with computed colors
+            items.slice(0, 25).forEach(function(it){
+            var label = (it.stand && it.stand.name) ? it.stand.name : it.id;
+            var color = determineColor(mode, it.stand || {});
+            content.innerHTML += swatchHTML(color, label);
+            });
             }
 
             // Apply coloring to map elements
             function applyColoring(mode) {
-                var items = collectStands();
-                items.forEach(function(it) {
-                    try {
-                        var c = determineColor(mode, it.stand);
-                        // Set style on circle
-                        if (it.circle && typeof it.circle.setStyle === 'function') {
-                            it.circle.setStyle({ color: c, fillColor: c, fillOpacity: 0.45 });
-                        }
-                        // Optionally adjust marker background (small square around label)
-                        if (it.marker && it.marker._icon) {
-                            // try to find the inner div and adjust its background-color
-                            var inner = it.marker._icon.querySelector('div');
-                            if (inner) inner.style.backgroundColor = c;
-                        }
-                    } catch (e) {
-                        console.error('Failed coloring stand', it.id, e);
-                    }
-                });
+            var items = collectStands();
+            items.forEach(function(it) {
+            try {
+            var c = determineColor(mode, it.stand);
+            // Set style on circle
+            if (it.circle && typeof it.circle.setStyle === 'function') {
+                it.circle.setStyle({ color: c, fillColor: c, fillOpacity: 0.45 });
+            }
+            // Optionally adjust marker background (small square around label)
+            if (it.marker && it.marker._icon) {
+                // try to find the inner div and adjust its background-color
+                var inner = it.marker._icon.querySelector('div');
+                if (inner) inner.style.backgroundColor = c;
+            }
+            } catch (e) {
+            console.error('Failed coloring stand', it.id, e);
+            }
+            });
 
-                // Update info text
-                var info = document.getElementById('colorModeInfo');
-                if (info) info.innerText = 'Current: ' + (mode.charAt(0).toUpperCase() + mode.slice(1));
+            // Update info text
+            var info = document.getElementById('colorModeInfo');
+            if (info) info.innerText = 'Current: ' + (mode.charAt(0).toUpperCase() + mode.slice(1));
+
+            // Update legend to reflect the chosen mode and discovered properties
+            try {
+            updateLegend(mode, items);
+            } catch (e) {
+            console.error('Failed to update legend', e);
+            }
             }
 
             // Wire radio buttons
             var radios = panel.querySelectorAll('input[name="colorMode"]');
             radios.forEach(function(r) {
-                r.addEventListener('change', function(e) {
-                    applyColoring(e.target.value);
-                });
+            r.addEventListener('change', function(e) {
+            applyColoring(e.target.value);
+            });
             });
 
             // Initial apply (default)
@@ -541,12 +681,16 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 
             // Expose quick API for console debugging
             window.__mapColoring = {
-                apply: applyColoring,
-                collect: collectStands,
-                colorForPriority: colorForPriority
+            apply: applyColoring,
+            collect: collectStands,
+            colorForPriority: colorForPriority
             };
         })();
 
+        // Add legend
+        //TODO: make legend dynamic based on current color configuration
+        var legend = L.control({position: 'topright'});
+        
 
         // Live reload system for localhost server
         if (window.location.protocol === 'http:' && window.location.hostname === 'localhost') {
@@ -556,19 +700,19 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             var reloadCheckInterval;
             
             function checkForReload() {
-                fetch('/reload_signal.txt?t=' + Date.now())
-                    .then(response => response.text())
-                    .then(timestamp => {
-                        var currentCheck = parseInt(timestamp);
-                        if (currentCheck > lastReloadCheck && lastReloadCheck > 0) {
-                            console.log('✅ File updated! Reloading page...');
-                            window.location.reload(true);
-                        }
-                        lastReloadCheck = currentCheck;
-                    })
-                    .catch(error => {
-                        console.log('Reload check failed:', error.message);
-                    });
+            fetch('/reload_signal.txt?t=' + Date.now())
+            .then(response => response.text())
+            .then(timestamp => {
+            var currentCheck = parseInt(timestamp);
+            if (currentCheck > lastReloadCheck && lastReloadCheck > 0) {
+                console.log('✅ File updated! Reloading page...');
+                window.location.reload(true);
+            }
+            lastReloadCheck = currentCheck;
+            })
+            .catch(error => {
+            console.log('Reload check failed:', error.message);
+            });
             }
             
             // Check every 2 seconds
@@ -580,30 +724,30 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             // Add visual indicator
             var indicator = document.createElement('div');
             indicator.innerHTML = '🔄 Live Reload Active';
-            indicator.style.cssText = 'position:fixed;top:10px;right:10px;background:linear-gradient(45deg, #4CAF50, #45a049);color:white;padding:8px 12px;border-radius:8px;font-size:12px;z-index:10000;font-family:Arial,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);';
+            indicator.style.cssText = 'position:fixed;bottom:10px;right:10px;background:linear-gradient(45deg, #4CAF50, #45a049);color:white;padding:8px 12px;border-radius:8px;font-size:12px;z-index:10000;font-family:Arial,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);';
             document.body.appendChild(indicator);
             
             // Animate indicator
             indicator.style.transform = 'translateY(-100px)';
             indicator.style.transition = 'all 0.3s ease';
             setTimeout(function() {
-                indicator.style.transform = 'translateY(0)';
+            indicator.style.transform = 'translateY(0)';
             }, 100);
             
             // Fade after 3 seconds
             setTimeout(function() {
-                if (indicator && indicator.parentNode) {
-                    indicator.style.opacity = '0.6';
-                    indicator.innerHTML = '🔄 Monitoring...';
-                }
+            if (indicator && indicator.parentNode) {
+            indicator.style.opacity = '0.6';
+            indicator.innerHTML = '🔄 Monitoring...';
+            }
             }, 3000);
         }
           
-    </script>
-</body>
-<!-- Generated: )"
-                 << timestamp << R"( -->
-</html>)";
+        </script>
+        </body>
+        <!-- Generated: )"
+             << timestamp << R"( -->
+        </html>)";
 
         htmlFile.close();
 
