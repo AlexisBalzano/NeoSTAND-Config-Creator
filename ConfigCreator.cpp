@@ -85,7 +85,6 @@ int main()
 
         if (cmdLower == "exit")
         {
-            cleanup();
             break;
         }
         if (cmdLower == "save")
