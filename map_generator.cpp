@@ -6,6 +6,13 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <algorithm>
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 void generateMap(const nlohmann::ordered_json &configJson, const std::string &icao, bool openBrowser)
 {
@@ -770,13 +777,20 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         if (openBrowser)
         {
 #ifdef _WIN32
-            std::string mapFileName = std::filesystem::path(filename).filename().string();
-            std::string localhost_url = "http://localhost:" + std::to_string(g_liveServer->getPort()) + "/" + mapFileName;
-            std::string openCommand = "start \"\" \"" + localhost_url + "\"";
-            std::system(openCommand.c_str());
-            std::cout << "Map opened at " << localhost_url << std::endl;
+        // Use ShellExecuteA to open the browser without blocking
+        std::string mapFileName = std::filesystem::path(filename).filename().string();
+        std::string localhost_url = "http://localhost:" + std::to_string(g_liveServer->getPort()) + "/" + mapFileName;
+        ShellExecuteA(NULL, "open", localhost_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+        std::cout << "Map opened at " << localhost_url << std::endl;
 #else
-            std::cout << "Map generated at " << filename << std::endl;
+        // Try to open with the platform default opener in background so it doesn't block
+    #if defined(__APPLE__)
+        std::string openCmd = "open \"" + filename + "\" &";
+    #else
+        std::string openCmd = "xdg-open \"" + filename + "\" &";
+    #endif
+        std::system(openCmd.c_str());
+        std::cout << "Map generated at " << filename << std::endl;
 #endif
         }
     }
