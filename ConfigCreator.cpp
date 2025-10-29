@@ -62,15 +62,6 @@ int main()
     nlohmann::ordered_json configJson;
     std::string icao;
 
-    auto cleanup = []()
-    {
-        if (g_liveServer)
-        {
-            g_liveServer->stop();
-            g_liveServer.reset();
-        }
-    };
-
     if (initConfig(configJson, mapGenerated, icao) != 0)
         return 1;
 

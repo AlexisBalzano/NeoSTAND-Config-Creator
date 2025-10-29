@@ -221,3 +221,15 @@ bool naturalSort(const std::string& a, const std::string& b) {
     // If all compared parts are equal, shorter string comes first
     return partsA.size() < partsB.size();
 }
+
+bool useIsValid(const std::string &use)
+{
+    std::regex validUseRegex(R"(^[A,C,H,M,P]+$)");
+    return std::regex_match(use, validUseRegex);
+}
+
+bool codeIsValid(const std::string &code)
+{
+    std::regex validCodeRegex(R"(^[A,B,C,D,E,F]+$)");
+    return std::regex_match(code, validCodeRegex);
+}

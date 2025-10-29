@@ -135,7 +135,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             std::getline(std::cin, coordinates);
             if (!isCoordinatesValid(coordinates))
             {
-                std::cout << "Invalid coordinates format. Please use lat:lon:radius (e.g., 43.666359:7.216941:20)." << std::endl;
+                std::cout << RED << "Invalid coordinates format. Please use lat:lon:radius (e.g., 43.666359:7.216941:20)." << RESET << std::endl;
                 std::cout << "Enter coordinates (format: lat:lon:radius): ";
                 continue;
             }
@@ -146,30 +146,41 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
             }
         }
 
-        std::cout << "Enter code (optional): ";
         std::string code;
         while (true)
         {
+            std::cout << "Enter code (optional): ";
             std::getline(std::cin, code);
             if (!code.empty())
             {
+                if (!codeIsValid(code))
+                {
+                    std::cout << RED << "Invalid code format. Allowed characters combination: A,B,C,D,E,F." << RESET << std::endl;
+                    continue;
+                }
                 std::transform(code.begin(), code.end(), code.begin(), ::toupper);
                 configJson["Stands"][standNameUpper]["Code"] = code;
-                break;
             }
-            else
-                break;
+            break;
         }
 
-        std::cout << "Enter use (optional): ";
         std::string use;
-        std::getline(std::cin, use);
-        if (!use.empty())
+        while (true)
         {
-            std::transform(use.begin(), use.end(), use.begin(), ::toupper);
-            configJson["Stands"][standNameUpper]["Use"] = use;
+            std::cout << "Enter use (optional): ";
+            std::getline(std::cin, use);
+            if (!use.empty())
+            {
+                if (!useIsValid(use))
+                {
+                    std::cout << RED << "Invalid use format. Allowed characters: A, C, H, M, P." << RESET << std::endl;
+                    continue;
+                }
+                std::transform(use.begin(), use.end(), use.begin(), ::toupper);
+                configJson["Stands"][standNameUpper]["Use"] = use;
+            }
+            break;
         }
-
         std::cout << "Is it a Schengen stand? (y/n/empty): ";
         std::string schengenInput;
         std::getline(std::cin, schengenInput);
@@ -251,7 +262,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
                 }
                 catch (const std::exception &e)
                 {
-                    std::cout << "Invalid wingspan input." << std::endl;
+                    std::cout << RED << "Invalid wingspan input." << RESET << std::endl;
                     std::cout << "Enter wingspan (integer, optional): ";
                     continue;
                 }
@@ -590,7 +601,7 @@ void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std
         }
         else if (!isCoordinatesValid(coordinates))
         {
-            std::cout << "Invalid coordinates format. Please use lat:lon:radius (e.g., 43.666359:7.216941:20)." << std::endl;
+            std::cout << RED << "Invalid coordinates format. Please use lat:lon:radius (e.g., 43.666359:7.216941:20)." << RESET << std::endl;
             std::cout << "Enter new coordinates (format: lat:lon:radius): ";
             continue;
         }
@@ -618,6 +629,12 @@ void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std
         else
         {
             std::transform(code.begin(), code.end(), code.begin(), ::toupper);
+            if (codeIsValid(code) == false)
+            {
+                std::cout << RED << "Invalid code format. Allowed characters combination: A,B,C,D,E,F." << RESET << std::endl;
+                std::cout << "Enter new code (empty to keep, r to remove): ";
+                continue;
+            }
             configJson["Code"] = code;
             break;
         }
@@ -639,6 +656,12 @@ void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std
         }
         else
         {
+            if (useIsValid(use) == false)
+            {
+                std::cout << RED << "Invalid use format. Allowed characters: A, C, H, M, P." << RESET << std::endl;
+                std::cout << "Enter new use (empty to keep, r to remove): ";
+                continue;
+            }
             std::transform(use.begin(), use.end(), use.begin(), ::toupper);
             configJson["Use"] = use;
             break;

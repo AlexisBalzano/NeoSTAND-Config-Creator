@@ -36,5 +36,7 @@ std::vector<std::string> splitRemark(const std::string &str);
 std::string getExecutableDir();
 std::string getBaseDir();
 bool isCoordinatesValid(std::string &coordinates);
+bool useIsValid(const std::string &use);
+bool codeIsValid(const std::string &code);
 std::vector<std::pair<std::string, std::string>> parseStandName(const std::string& standName);
 bool naturalSort(const std::string& a, const std::string& b);
