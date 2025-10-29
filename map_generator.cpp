@@ -184,6 +184,12 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                                 htmlFile << "        popupContent_" << standNameVar << " += '<br>Schengen: " << (standData["Schengen"].get<bool>() ? "Yes" : "No") << "';\n";
                             if (standData.contains("Apron"))
                                 htmlFile << "        popupContent_" << standNameVar << " += '<br>Apron: " << (standData["Apron"].get<bool>() ? "Yes" : "No") << "';\n";
+                            if (standData.contains("Wingspan"))
+                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Wingspan: " << standData["Wingspan"].get<double>() << "m';\n";
+                            if (standData.contains("Remark")) {
+                                for (const auto& [code, remark] : standData["Remark"].items())
+                                    htmlFile << "        popupContent_" << standNameVar << " += '<br>Remark (" << code << "): " << remark << "';\n";
+                            }
                             if (standData.contains("Priority"))
                                 htmlFile << "        popupContent_" << standNameVar << " += '<br>Priority: " << standData["Priority"] << "';\n";
                             htmlFile << "        popupContent_" << standNameVar << " += '<br>Radius: " << radius << "m';\n";
