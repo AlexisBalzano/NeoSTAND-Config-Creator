@@ -294,22 +294,6 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         }
 
         htmlFile << R"(        
-        // Add legend
-        //TODO: make legend dynamic based on current color configuration
-        var legend = L.control({position: 'topright'});
-        legend.onAdd = function (map) {
-            var div = L.DomUtil.create('div', 'legend');
-            div.innerHTML = '<h4>)"
-                 << icao << R"( Stands Legend</h4>' +
-                '<i style="background:#96CEB4; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Default<br>' +
-                '<i style="background:#45B7D1; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Schengen<br>' +
-                '<i style="background:#4ECDC4; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Non-Schengen<br>' +
-                '<i style="background:#FF6B6B; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7; border-radius:50%;"></i> Apron<br><br>' +
-                '<div style="background:#e8f5e8; padding:4px; border-radius:3px; margin:5px 0;"><strong>🔄 Auto-reload: ON</strong><br><small>Smart updates</small></div>' +
-                '<small>Click circles for details<br>Click map to copy coordinates</small>';
-            return div;
-        };
-        legend.addTo(map);
         
         // Add click event to copy coordinates to clipboard
         map.on('click', function(e) {
@@ -374,8 +358,6 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             document.body.removeChild(textArea);
         }
 
-        //TODO: use layer control to select different stand color coding
-        // Options be like : Priority, Schengen, Apron, Use
         /* Color-mode control UI */
         (function() {
             // Create control container
@@ -395,7 +377,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             panel.style.cssText = 'position:fixed;right:12px;top:50%;transform:translateY(-50%) translateX(110%);width:260px;z-index:10002;background:#fff;border:1px solid rgba(0,0,0,0.12);box-shadow:0 6px 20px rgba(0,0,0,0.12);padding:12px;border-radius:8px;transition:transform 0.25s ease;max-height:70vh;overflow:auto;font-family:Arial,sans-serif;';
             panel.innerHTML = '<strong>Color stands by</strong><br/><small style="color:#666">Choose a mode to recolor visible stands</small><hr style="margin:8px 0"/>' +
                               '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="default" checked/> Default </label>' +
-                              '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="schengen" checked/> Schengen / Non-Schengen</label>' +
+                      '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="schengen"/> Schengen / Non-Schengen</label>' +
                               '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="apron" /> Apron / Stand</label>' +
                               '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="use" /> Use </label>' +
                               '<label style="display:block;margin:6px 0"><input type="radio" name="colorMode" value="priority" /> Priority (gradient)</label>' +
