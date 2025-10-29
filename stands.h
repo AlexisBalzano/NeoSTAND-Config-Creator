@@ -12,3 +12,5 @@ void editStandRadius(nlohmann::ordered_json &configJson, const std::string &stan
 void copyStand(nlohmann::ordered_json &configJson, const std::string &standName);
 void batchcopy(nlohmann::ordered_json &configJson, const std::string &standName);
 void softStandCopy(nlohmann::ordered_json &configJson, const std::string &standName);
+
+void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std::string& newStandName);
