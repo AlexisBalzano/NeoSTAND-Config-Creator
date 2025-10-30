@@ -26,10 +26,12 @@ jobs:
             artifact_name: rampagent-configurator-macos
             asset_name: rampagent-configurator-macos
             executable: ConfigCreator
-          - os: macos-11
+            arch: arm64
+          - os: macos-latest
             artifact_name: rampagent-configurator-macos-x86
             asset_name: rampagent-configurator-macos-x86
             executable: ConfigCreator
+            arch: x86
 
     steps:
     - uses: actions/checkout@v4
@@ -62,8 +64,15 @@ jobs:
     - name: Install Xcode Command Line Tools (macOS)
       if: startsWith(matrix.os, 'macos')
       run: |
-        xcode-select --install || true
-        brew install zip || true
+        if [ "${{ matrix.arch }}" = "x86" ]; then
+          # Enable Rosetta and run commands under x86 emulation
+          sudo softwareupdate --install-rosetta --agree-to-license || true
+          arch -x86_64 xcode-select --install || true
+          arch -x86_64 brew install zip || true
+        else
+          xcode-select --install || true
+          brew install zip || true
+        fi
 
     - name: Download nlohmann/json header (Linux/macOS)
       if: matrix.os != 'windows-latest'
@@ -79,7 +88,12 @@ jobs:
         curl -o nlohmann/json.hpp https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp
 
     - name: Build using Makefile
-      run: make
+      run: |
+        if [ "${{ matrix.os }}" = "macos-latest" ] && [ "${{ matrix.arch }}" = "x86" ]; then
+          arch -x86_64 make
+        else
+          make
+        fi
       if: matrix.os != 'windows-latest'
 
     - name: Build using Makefile (Windows)
