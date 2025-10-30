@@ -26,11 +26,14 @@ The `map` command generates an interactive HTML map that visualizes all stands w
 
 ### Features:
 - **Satellite imagery** from Esri with OpenStreetMap overlay for airport details
-- **Color-coded stands** based on type:
-  - 🟢 Default stands (green)
-  - 🔵 Schengen stands (blue) 
-  - 🔵 Non-Schengen stands (teal)
-  - 🔴 Apron stands (red)
+- **Color-coded stands** based on different options:
+  - Schengen Status
+  - Stand Type
+  - Code
+  - Priority
+  - Remark
+  - Wingspan
+  - Callsign
 - **Interactive circles** showing each stand's radius
 - **Detailed popups** with all stand information (code, use, priority, callsigns, countries, blocked stands, etc.)
 - **Stand labels** for easy identification
