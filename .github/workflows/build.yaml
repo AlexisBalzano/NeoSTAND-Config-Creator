@@ -65,11 +65,10 @@ jobs:
       if: startsWith(matrix.os, 'macos')
       run: |
         if [ "${{ matrix.arch }}" = "x86" ]; then
-          # Enable Rosetta and run commands under x86 emulation
+          # Install Rosetta for x86 emulation (zip is already available on runner)
           sudo softwareupdate --install-rosetta --agree-to-license || true
-          arch -x86_64 xcode-select --install || true
-          arch -x86_64 brew install zip || true
         else
+          # Normal arm64 setup
           xcode-select --install || true
           brew install zip || true
         fi
