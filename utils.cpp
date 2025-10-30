@@ -55,18 +55,23 @@ std::string getExecutableDir() {
     std::string executablePath = buffer;
     size_t pos = executablePath.find_last_of("\\/");
     return (pos == std::string::npos) ? "" : executablePath.substr(0, pos + 1);
+#elif defined(__APPLE__)
+    char buffer[1024];
+    uint32_t size = sizeof(buffer);
+    if (_NSGetExecutablePath(buffer, &size) != 0) {
+        return "./"; // Fallback to current directory
+    }
+    std::string executablePath = buffer;
+    size_t pos = executablePath.find_last_of('/');
+    return (pos == std::string::npos) ? "./" : executablePath.substr(0, pos + 1);
 #else
+    // Assume Linux / other unix: readlink on /proc/self/exe
     char buffer[1024];
     ssize_t count = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
     if (count == -1) {
-        // Fallback for macOS
-        uint32_t size = sizeof(buffer);
-        if (_NSGetExecutablePath(buffer, &size) != 0) {
-            return "./"; // Fallback to current directory
-        }
-    } else {
-        buffer[count] = '\0';
+        return "./";
     }
+    buffer[count] = '\0';
     std::string executablePath = buffer;
     size_t pos = executablePath.find_last_of('/');
     return (pos == std::string::npos) ? "./" : executablePath.substr(0, pos + 1);
