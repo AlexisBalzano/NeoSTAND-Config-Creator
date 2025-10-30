@@ -47,6 +47,14 @@ jobs:
           mingw-w64-x86_64-make
           mingw-w64-x86_64-curl
 
+    - name: Update MSYS2 and ensure build tools (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
+      run: |
+        # Update package DB and core packages, then ensure make and toolchain are installed
+        pacman -Syu --noconfirm
+        pacman -S --noconfirm base-devel mingw-w64-x86_64-toolchain make
+
     - name: Install Xcode Command Line Tools (macOS)
       if: startsWith(matrix.os, 'macos')
       run: |
