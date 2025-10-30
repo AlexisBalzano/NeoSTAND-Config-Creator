@@ -102,7 +102,7 @@ void listAllStands(const nlohmann::ordered_json &configJson)
         std::cout << "Current stands:" << std::endl;
         for (auto &[key, value] : configJson["Stands"].items())
         {
-            std::cout << " - " << BLUE << key << RESET;
+            std::cout << " - " << CYAN << key << RESET;
             printStandInfo(value);
         }
     }
@@ -286,7 +286,7 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
                 }
                 catch (const std::exception &e)
                 {
-                    std::cout << "Invalid priority input." << std::endl;
+                    std::cout << RED << "Invalid priority input." << RESET << std::endl;
                     std::cout << "Enter priority (integer, optional): ";
                     continue;
                 }
