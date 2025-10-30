@@ -1,4 +1,4 @@
-name: Build NeoSTAND Configurator
+name: Build rampagent Configurator
 
 on:
   push:
@@ -15,16 +15,16 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact_name: neostand-configurator-linux
-            asset_name: neostand-configurator-linux
+            artifact_name: rampagent-configurator-linux
+            asset_name: rampagent-configurator-linux
             executable: ConfigCreator.exe
           - os: windows-latest
-            artifact_name: neostand-configurator-windows-x64
-            asset_name: neostand-configurator-windows-x64
+            artifact_name: rampagent-configurator-windows-x64
+            asset_name: rampagent-configurator-windows-x64
             executable: ConfigCreator.exe
           - os: macos-latest
-            artifact_name: neostand-configurator-macos
-            asset_name: neostand-configurator-macos
+            artifact_name: rampagent-configurator-macos
+            asset_name: rampagent-configurator-macos
             executable: ConfigCreator.exe
 
     steps:
