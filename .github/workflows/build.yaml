@@ -17,7 +17,7 @@ jobs:
           - os: ubuntu-latest
             artifact_name: rampagent-configurator-linux
             asset_name: rampagent-configurator-linux
-            executable: ConfigCreator.exe
+            executable: ConfigCreator
           - os: windows-latest
             artifact_name: rampagent-configurator-windows-x64
             asset_name: rampagent-configurator-windows-x64
@@ -25,7 +25,7 @@ jobs:
           - os: macos-latest
             artifact_name: rampagent-configurator-macos
             asset_name: rampagent-configurator-macos
-            executable: ConfigCreator.exe
+            executable: ConfigCreator
 
     steps:
     - uses: actions/checkout@v4
@@ -98,11 +98,11 @@ jobs:
 
     - name: Package artifacts (Windows)
       if: matrix.os == 'windows-latest'
-      run: |
-        mkdir -p release
-        cp ${{ matrix.executable }} release/
-        cp -r configs release/
       shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path release | Out-Null
+        Copy-Item -Path "${{ matrix.executable }}" -Destination release/ -Force
+        Copy-Item -Path configs -Destination release/ -Recurse -Force
     - name: Create zip on Windows (PowerShell)
       if: matrix.os == 'windows-latest'
       shell: pwsh

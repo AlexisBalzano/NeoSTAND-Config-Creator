@@ -21,7 +21,16 @@ else
 	LDFLAGS := -pthread
 endif
 
-OUT := ConfigCreator.exe
+# Output filename: use .exe on Windows/MSYS/Cygwin, plain name on Unix
+UNAME_S := $(shell uname -s 2>/dev/null)
+OUT := ConfigCreator
+ifneq ($(findstring MINGW,$(UNAME_S)),)
+	OUT := ConfigCreator.exe
+endif
+ifneq ($(findstring CYGWIN,$(UNAME_S)),)
+	OUT := ConfigCreator
+endif
+
 SRCS := $(wildcard *.cpp)
 
 .PHONY: all clean run
