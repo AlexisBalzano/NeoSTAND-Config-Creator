@@ -26,6 +26,10 @@ jobs:
             artifact_name: rampagent-configurator-macos
             asset_name: rampagent-configurator-macos
             executable: ConfigCreator
+          - os: macos-11
+            artifact_name: rampagent-configurator-macos-x86
+            asset_name: rampagent-configurator-macos-x86
+            executable: ConfigCreator
 
     steps:
     - uses: actions/checkout@v4
