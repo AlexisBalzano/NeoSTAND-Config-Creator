@@ -108,10 +108,29 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Restore saved map position and zoom, or use defaults
+        var savedCenter = localStorage.getItem('mapCenter');
+        var savedZoom = localStorage.getItem('mapZoom');
+        
+        var initialLat = savedCenter ? JSON.parse(savedCenter).lat : )"
+                 << centerLat << R"(;
+        var initialLng = savedCenter ? JSON.parse(savedCenter).lng : )" << centerLon << R"(;
+        var initialZoom = savedZoom ? parseInt(savedZoom) : )" << zoomLevel << R"(;
+        
         var map = L.map('map', {
             maxZoom: 19  // Increase maximum zoom level
-        }).setView([)"
-                 << centerLat << ", " << centerLon << R"(], )" << zoomLevel << R"();
+        }).setView([initialLat, initialLng], initialZoom);
+        
+        // Save map position and zoom whenever user moves or zooms
+        function saveMapState() {
+            var center = map.getCenter();
+            localStorage.setItem('mapCenter', JSON.stringify({lat: center.lat, lng: center.lng}));
+            localStorage.setItem('mapZoom', map.getZoom());
+        }
+        
+        // Save state on move and zoom events
+        map.on('moveend', saveMapState);
+        map.on('zoomend', saveMapState);
         
         // Add satellite tile layer
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -290,21 +309,25 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         }
 
         // Emit JS to adjust view to include all stands (fitBounds) or center on single stand
+        // Only apply auto-fit on first load (when no saved position exists)
+        htmlFile << "        // Only auto-fit if no saved position exists (first load)\n";
+        htmlFile << "        if (!savedCenter && !savedZoom) {\n";
         if (validStands == 0)
         {
             // keep default center/zoom
         }
         else if (validStands == 1)
         {
-            htmlFile << "        // Center on single stand\n";
-            htmlFile << "        map.setView([" << firstLat << ", " << firstLon << "], 16);\n";
+            htmlFile << "            // Center on single stand\n";
+            htmlFile << "            map.setView([" << firstLat << ", " << firstLon << "], 16);\n";
         }
         else
         {
-            htmlFile << "        // Fit map to bounds covering all stands\n";
-            htmlFile << "        var bounds = L.latLngBounds([ [" << minLat << ", " << minLon << "], [" << maxLat << ", " << maxLon << "] ]);\n";
-            htmlFile << "        map.fitBounds(bounds, { padding: [80, 80] });\n";
+            htmlFile << "            // Fit map to bounds covering all stands\n";
+            htmlFile << "            var bounds = L.latLngBounds([ [" << minLat << ", " << minLon << "], [" << maxLat << ", " << maxLon << "] ]);\n";
+            htmlFile << "            map.fitBounds(bounds, { padding: [80, 80] });\n";
         }
+        htmlFile << "        }\n";
 
         htmlFile << R"(
         
@@ -719,7 +742,9 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             .then(timestamp => {
             var currentCheck = parseInt(timestamp);
             if (currentCheck > lastReloadCheck && lastReloadCheck > 0) {
-                console.log('✅ File updated! Reloading page...');
+                console.log('✅ File updated! Saving map state and reloading page...');
+                // Save map state before reloading
+                saveMapState();
                 window.location.reload(true);
             }
             lastReloadCheck = currentCheck;
