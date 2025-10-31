@@ -76,7 +76,7 @@ int main()
 
         if (cmdLower == "exit")
         {
-            break;
+            return 0;
         }
         if (cmdLower == "save")
         {
