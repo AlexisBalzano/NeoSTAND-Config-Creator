@@ -607,7 +607,7 @@ void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std
         }
         else
         {
-            configJson["Stands"][newStandName]["Coordinates"] = coordinates;
+            configJson["Coordinates"] = coordinates;
             break;
         }
     }
