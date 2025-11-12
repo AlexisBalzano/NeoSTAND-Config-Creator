@@ -39,7 +39,7 @@ The `map` command generates an interactive HTML map that visualizes all stands w
 - **Stand labels** for easy identification
 - **Legend** and layer controls
 - **🔄 Live Reload Server** - Automatic browser refresh when files change:
-  - Starts a local server at `http://localhost:3000`
+  - Starts a local server at `http://localhost:4000`
   - Real-time updates without manual refresh
   - Works when you add, edit, remove, or copy stands
   - Smart file monitoring with WebSocket-like updates
