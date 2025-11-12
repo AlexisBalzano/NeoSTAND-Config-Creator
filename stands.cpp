@@ -13,8 +13,19 @@ void printMenu()
     std::cout << " copy <sourceStand> : copy existing stand settings" << std::endl;
     std::cout << " batchcopy <sourceStand> : copy existing stand settings to stand list provided" << std::endl;
     std::cout << " softcopy <sourceStand> : copy existing stand settings but iterate through them so you can modify" << std::endl;
+    std::cout << " rename <oldName> : rename existing stand" << std::endl;
     std::cout << " edit <standName> : edit existing stand" << std::endl;
     std::cout << " radius <standName> : edit existing stand radius only" << std::endl;
+    std::cout << " code <standName> : edit existing stand code only" << std::endl;
+    std::cout << " use <standName> : edit existing stand use only" << std::endl;
+    std::cout << " schengen <standName> : edit existing stand schengen status only" << std::endl;
+    std::cout << " callsigns <standName> : edit existing stand callsigns only" << std::endl;
+    std::cout << " countries <standName> : edit existing stand countries only" << std::endl;
+    std::cout << " block <standName> : edit existing stand blocked aircraft only" << std::endl;
+    std::cout << " remark <standName> : edit existing stand remarks only" << std::endl;
+    std::cout << " wingspan <standName> : edit existing stand wingspan only" << std::endl;
+    std::cout << " priority <standName> : edit existing stand priority only" << std::endl;
+    std::cout << " apron <standName> : edit existing stand apron status only" << std::endl;
     std::cout << " list : list all stands" << std::endl;
     std::cout << " map : generate HTML map visualization for debugging" << std::endl;
     std::cout << " save : save changes and exit" << std::endl;
@@ -958,5 +969,560 @@ void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std
         {
             std::cout << RED << "Invalid input. Please enter 'Y', 'N', 'R' to remove or leave empty to keep." << RESET << std::endl;
         }
+    }
+}
+
+void renameStand(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string oldStandNameUpper = standName;
+    std::transform(oldStandNameUpper.begin(), oldStandNameUpper.end(), oldStandNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object())
+    {
+        if (!configJson["Stands"].contains(oldStandNameUpper))
+        {
+            std::cout << "Stand " << oldStandNameUpper << " does not exist." << std::endl;
+        }
+        std::string newStandName;
+        std::cout << "Enter new stand name: ";
+        std::getline(std::cin, newStandName);
+        std::string newStandNameUpper = newStandName;
+        std::transform(newStandNameUpper.begin(), newStandNameUpper.end(), newStandNameUpper.begin(), ::toupper);
+        if (newStandNameUpper.empty())
+        {
+            std::cout << RED << "New stand name cannot be empty." << RESET << std::endl;
+            return;
+        }
+        if (configJson["Stands"].contains(newStandNameUpper))
+        {
+            std::cout << RED << "Stand " << newStandNameUpper << " already exists." << RESET << std::endl;
+            return;
+        }
+        else
+        {
+            configJson["Stands"][newStandNameUpper] = configJson["Stands"][oldStandNameUpper];
+            configJson["Stands"].erase(oldStandNameUpper);
+            std::cout << "Stand " << oldStandNameUpper << " renamed to " << newStandNameUpper << "." << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << "No stands available to rename." << std::endl;
+    }
+}
+
+void editCode(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current code for stand " << standNameUpper << ": " << (standJson.contains("Code") ? standJson["Code"].get<std::string>() : "none") << std::endl;
+        std::cout << "Enter new code (empty to keep, r to remove): ";
+        std::string code;
+        while (true)
+        {
+            std::getline(std::cin, code);
+            if (code.empty())
+            {
+                break; // Keep current
+            }
+            else if (code == "r" || code == "R")
+            {
+                standJson.erase("Code");
+                break;
+            }
+            else
+            {
+                std::transform(code.begin(), code.end(), code.begin(), ::toupper);
+                if (codeIsValid(code) == false)
+                {
+                    std::cout << RED << "Invalid code format. Allowed characters combination: A,B,C,D,E,F." << RESET << std::endl;
+                    std::cout << "Enter new code (empty to keep, r to remove): ";
+                    continue;
+                }
+                standJson["Code"] = code;
+                break;
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " code updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editUse(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current use for stand " << standNameUpper << ": " << (standJson.contains("Use") ? standJson["Use"].get<std::string>() : "none") << std::endl;
+        std::cout << "Enter new use (single character, empty to keep, r to remove): ";
+        std::string use;
+        while (true)
+        {
+            std::getline(std::cin, use);
+            if (use.empty())
+            {
+                break; // Keep current
+            }
+            else if (use == "r" || use == "R")
+            {
+                standJson.erase("Use");
+                break;
+            }
+            else
+            {
+                if (useIsValid(use) == false)
+                {
+                    std::cout << RED << "Invalid use format. Allowed characters: A, C, H, M, P." << RESET << std::endl;
+                    std::cout << "Enter new use (empty to keep, r to remove): ";
+                    continue;
+                }
+                std::transform(use.begin(), use.end(), use.begin(), ::toupper);
+                standJson["Use"] = use;
+                break;
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " use updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editSchengen(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current Schengen status for stand " << standNameUpper << ": " << (standJson.contains("Schengen") ? (standJson["Schengen"].get<bool>() ? "Yes" : "No") : "none") << std::endl;
+        std::cout << "Is it a Schengen stand? (Y/N, empty to keep, r to remove): ";
+        std::string schengen;
+        while (true)
+        {
+            std::getline(std::cin, schengen);
+            if (schengen.empty())
+            {
+                break; // Keep current
+            }
+            else if (schengen == "r" || schengen == "R")
+            {
+                standJson.erase("Schengen");
+                break;
+            }
+            else if (schengen == "Y" || schengen == "y")
+            {
+                standJson["Schengen"] = true;
+                break;
+            }
+            else if (schengen == "N" || schengen == "n")
+            {
+                standJson["Schengen"] = false;
+                break;
+            }
+            else
+            {
+                std::cout << RED << "Invalid input. Please enter 'Y', 'N', 'R' to remove or leave empty to keep." << RESET << std::endl;
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " Schengen status updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editCallsigns(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current callsigns for stand " << standNameUpper << ": ";
+        if (standJson.contains("Callsigns"))
+        {
+            for (const auto &cs : standJson["Callsigns"])
+            {
+                std::cout << cs << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+        std::cout << std::endl;
+        std::cout << "Enter new callsigns (comma separated, empty to keep, r to remove): ";
+        std::string callsignsInput;
+        while (true)
+        {
+            std::getline(std::cin, callsignsInput);
+            if (callsignsInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (callsignsInput == "r" || callsignsInput == "R")
+            {
+                standJson.erase("Callsigns");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> callsigns = splitString(callsignsInput);
+                if (!callsigns.empty())
+                {
+                    standJson["Callsigns"] = callsigns;
+                }
+                else
+                {
+                    standJson.erase("Callsigns");
+                }
+                break;
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " callsigns updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editCountries(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current countries for stand " << standNameUpper << ": ";
+        if (standJson.contains("Countries"))
+        {
+            for (const auto &country : standJson["Countries"])
+            {
+                std::cout << country << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+        std::cout << std::endl;
+        std::cout << "Enter new countries (comma separated, empty to keep, r to remove): ";
+        std::string countriesInput;
+        while (true)
+        {
+            std::getline(std::cin, countriesInput);
+            if (countriesInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (countriesInput == "r" || countriesInput == "R")
+            {
+                standJson.erase("Countries");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> countries = splitString(countriesInput);
+                if (!countries.empty())
+                {
+                    standJson["Countries"] = countries;
+                }
+                else
+                {
+                    standJson.erase("Countries");
+                }
+                break;
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " countries updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editBlock(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current blocked stands for stand " << standNameUpper << ": ";
+        if (standJson.contains("Block"))
+        {
+            for (const auto &blk : standJson["Block"])
+            {
+                std::cout << blk << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+        std::cout << std::endl;
+        std::cout << "Enter new blocked stands (comma separated, empty to keep, r to remove): ";
+        std::string blockInput;
+        while (true)
+        {
+            std::getline(std::cin, blockInput);
+            if (blockInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (blockInput == "r" || blockInput == "R")
+            {
+                standJson.erase("Block");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> blocked = splitString(blockInput);
+                if (!blocked.empty())
+                {
+                    standJson["Block"] = blocked;
+                }
+                else
+                {
+                    standJson.erase("Block");
+                }
+                break;
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " blocked stands updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editWingspan(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current max Wingspan for stand " << standNameUpper << ": " << (standJson.contains("Wingspan") ? std::to_string(standJson["Wingspan"].get<int>()) : "none") << std::endl;
+        std::cout << "Enter new max Wingspan (integer, empty to keep, r to remove): ";
+        std::string wingspanInput;
+        while (true)
+        {
+            std::getline(std::cin, wingspanInput);
+            if (wingspanInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (wingspanInput == "r" || wingspanInput == "R")
+            {
+                standJson.erase("Wingspan");
+                break;
+            }
+            else
+            {
+                try
+                {
+                    int wingspan = std::stoi(wingspanInput);
+                    standJson["Wingspan"] = wingspan;
+                    break;
+                }
+                catch (const std::exception &e)
+                {
+                    std::cout << RED << "Invalid wingspan input." << RESET << std::endl;
+                    std::cout << "Enter new max Wingspan (integer, empty to keep/remove): ";
+                    continue;
+                }
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " max Wingspan updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editRemark(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current Remark for stand " << standNameUpper << ": ";
+        if (standJson.contains("Remark"))
+        {
+            for (const auto &[key, value] : standJson["Remark"].items())
+            {
+                std::cout << key << " : " << value << " ";
+            }
+        }
+        else
+        {
+            std::cout << "none";
+        }
+        std::cout << std::endl;
+        std::cout << "Enter new Remark (format \"Code\":\"Remark\", comma separated, empty to keep, r to remove): ";
+        std::string remarkInput;
+        while (true)
+        {
+            std::getline(std::cin, remarkInput);
+            if (remarkInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (remarkInput == "r" || remarkInput == "R")
+            {
+                standJson.erase("Remark");
+                break;
+            }
+            else
+            {
+                std::vector<std::string> remarks = splitRemark(remarkInput);
+                if (!remarks.empty())
+                {
+                    nlohmann::ordered_json newRemarks;
+                    for (const auto &remark : remarks)
+                    {
+                        size_t colonPos = remark.find(':');
+                        std::string key = remark.substr(0, colonPos);
+                        key.erase(std::remove_if(key.begin(), key.end(), ::isspace), key.end());
+                        std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+                        std::string value = remark.substr(colonPos + 1);
+                        newRemarks[key] = value;
+                    }
+                    standJson["Remark"] = newRemarks;
+                }
+                else
+                {
+                    standJson.erase("Remark");
+                }
+                break;
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " Remark updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editPriority(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current priority for stand " << standNameUpper << ": " << (standJson.contains("Priority") ? std::to_string(standJson["Priority"].get<int>()) : "none") << std::endl;
+        std::cout << "Enter new priority (integer, empty to keep, r to remove): ";
+        std::string priorityInput;
+        while (true)
+        {
+            std::getline(std::cin, priorityInput);
+            if (priorityInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (priorityInput == "r" || priorityInput == "R")
+            {
+                standJson.erase("Priority");
+                break;
+            }
+            else
+            {
+                try
+                {
+                    int priority = std::stoi(priorityInput);
+                    standJson["Priority"] = priority;
+                    break;
+                }
+                catch (const std::exception &e)
+                {
+                    std::cout << RED << "Invalid priority input." << RESET << std::endl;
+                    std::cout << "Enter new priority (integer, empty to keep/remove): ";
+                    continue;
+                }
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " priority updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
+    }
+}
+
+void editApron(nlohmann::ordered_json &configJson, const std::string &standName)
+{
+    std::string standNameUpper = standName;
+    std::transform(standNameUpper.begin(), standNameUpper.end(), standNameUpper.begin(), ::toupper);
+    if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
+    {
+        nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
+        std::cout << "Current apron status for stand " << standNameUpper << ": " << (standJson.contains("Apron") ? (standJson["Apron"].get<bool>() ? "Yes" : "No") : "No") << std::endl;
+        std::cout << "Is it an apron stand? (Y if apron, empty to keep, r to remove): ";
+        std::string apronInput;
+        while (true)
+        {
+            std::getline(std::cin, apronInput);
+            if (apronInput.empty())
+            {
+                break; // Keep current
+            }
+            else if (apronInput == "r" || apronInput == "R")
+            {
+                standJson.erase("Apron");
+                break;
+            }
+            else if (apronInput == "Y" || apronInput == "y")
+            {
+                standJson["Apron"] = true;
+                break;
+            }
+            else
+            {
+                std::cout << RED << "Invalid input. Please enter 'Y', 'N', 'R' to remove or leave empty to keep." << RESET << std::endl;
+            }
+        }
+        std::cout << "Stand " << standNameUpper << " apron status updated." << std::endl;
+        printStandInfo(standJson);
+        std::cout << std::endl;
+    }
+    else
+    {
+        std::cout << "Stand " << standNameUpper << " does not exist." << std::endl;
     }
 }

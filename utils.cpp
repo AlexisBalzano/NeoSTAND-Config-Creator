@@ -119,7 +119,7 @@ bool isCoordinatesValid(std::string &coordinates)
             if (!radius.empty())
             {
                 double radiusVal = std::stod(radius);
-                if (radiusVal < 0)
+                if (radiusVal < 9)
                 {
                     return false;
                 }

@@ -11,8 +11,19 @@ Helper CLI to create Ramp Agent config files
 - `copy <sourceStand>` : copy existing stand settings
 - `batchcopy <sourceStand>` : copy existing stand settings to a list of stand + coordinates
 - `softcopy <sourceStand>` : copy existing stand settings but iterate through them so you can modify
+- `rename <oldStandName` : rename existing stand
 - `edit <standName>` : edit existing stand
 - `radius <standName>` : edit existing stand radius
+- `code <standName>` : edit existing stand code
+- `use <standName>` : edit existing stand use
+- `schengen <standName>` : edit existing stand schengen state
+- `apron <standName>` : edit existing stand apron state
+- `wingspan <standName>` : edit existing stand wingspan value
+- `priority <standName>` : edit existing stand priority value
+- `remark <standName>` : edit existing stand remark list
+- `countries <standName>` : edit existing stand countries list
+- `block <standName>` : edit existing stand block list
+- `callsigns <standName>` : edit existing stand callsigns list
 - `list` : list all stands
 - !`map` : generate HTML map visualization for debugging
 - `save` : save changes and exit

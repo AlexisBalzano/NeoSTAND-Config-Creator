@@ -8,7 +8,7 @@
 #include "stands.h"
 #include "live_reload.h"
 
-constexpr auto version = "v1.0.9";
+constexpr auto version = "v1.1.0";
 
 static void printBanner()
 {
@@ -157,6 +157,83 @@ int main()
         if (cmdLower == "help")
         {
             printMenu();
+            continue;
+        }
+        if (cmdLower.rfind("apron ", 0) == 0)
+        {
+            editApron(configJson, command.substr(6));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("priority ", 0) == 0)
+        {
+            editPriority(configJson, command.substr(9));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("wingspan ", 0) == 0)
+        {
+            editWingspan(configJson, command.substr(9));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("remark ", 0) == 0)
+        {
+            editRemark(configJson, command.substr(7));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("code ", 0) == 0)
+        {
+            editCode(configJson, command.substr(5));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("use ", 0) == 0)
+        {
+            editUse(configJson, command.substr(4));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("schengen ", 0) == 0)
+        {
+            editSchengen(configJson, command.substr(9));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("callsigns ", 0) == 0)
+        {
+            editCallsigns(configJson, command.substr(10));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("countries ", 0) == 0)
+        {
+            editCountries(configJson, command.substr(10));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("block ", 0) == 0)
+        {
+            editBlock(configJson, command.substr(6));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
+            continue;
+        }
+        if (cmdLower.rfind("rename ", 0) == 0)
+        {
+            renameStand(configJson, command.substr(7));
+            if (mapGenerated)
+                generateMap(configJson, icao, false);
             continue;
         }
 
