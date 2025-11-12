@@ -48,12 +48,24 @@ void LiveReloadServer::startServer(const std::string& mapFile) {
     impl.mapFilePath = mapFile;
     if (std::filesystem::exists(mapFile)) {
         impl.lastModified = std::filesystem::last_write_time(mapFile);
+    } else {
+        std::cout << RED << "LiveReloadServer: Map file does not exist: " << mapFile << RESET << std::endl;
+        return;
     }
     impl.running.store(true);
 
     // server thread
     impl.serverThread = std::thread([]() {
-        std::string baseDir = std::filesystem::path(impl.mapFilePath).parent_path().string();
+        // Get the directory containing the map file, or use current directory if map is at root
+        std::filesystem::path mapPath(impl.mapFilePath);
+        std::filesystem::path parentDir = mapPath.parent_path();
+        std::string baseDir;
+        if (parentDir.empty()) {
+            // Map file is at root level, use current working directory
+            baseDir = std::filesystem::current_path().string();
+        } else {
+            baseDir = parentDir.string();
+        }
 #ifdef _WIN32
         std::string command = "cd \"" + baseDir + "\" && py -m http.server " + std::to_string(impl.port) + " 2>nul";
 #else
@@ -69,7 +81,14 @@ void LiveReloadServer::startServer(const std::string& mapFile) {
                 auto currentModified = std::filesystem::last_write_time(impl.mapFilePath);
                 if (currentModified > impl.lastModified) {
                     impl.lastModified = currentModified;
-                    std::string signalFile = std::filesystem::path(impl.mapFilePath).parent_path().string() + "/reload_signal.txt";
+                    // Get the directory containing the map file, or use current directory if map is at root
+                    std::filesystem::path mapPath(impl.mapFilePath);
+                    std::filesystem::path parentDir = mapPath.parent_path();
+                    // If parent_path is empty, use current directory
+                    if (parentDir.empty()) {
+                        parentDir = ".";
+                    }
+                    std::string signalFile = parentDir.string() + "/reload_signal.txt";
                     std::ofstream signal(signalFile);
                     if (signal) {
                         signal << std::chrono::duration_cast<std::chrono::milliseconds>(

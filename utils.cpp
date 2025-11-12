@@ -80,7 +80,7 @@ std::string getExecutableDir() {
 
 std::string getBaseDir() {
     std::string execDir = getExecutableDir();
-    return execDir + "configs/";
+    return execDir;
 }
 
 bool isCoordinatesValid(std::string &coordinates)

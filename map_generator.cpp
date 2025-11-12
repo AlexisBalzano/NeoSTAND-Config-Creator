@@ -16,7 +16,7 @@
 
 void generateMap(const nlohmann::ordered_json &configJson, const std::string &icao, bool openBrowser)
 {
-    std::string filename = std::filesystem::path("configs/").string() + icao + "_map.html";
+    std::string filename = icao + "_map.html";
     std::ofstream htmlFile(filename);
 
     if (!htmlFile)
@@ -111,7 +111,8 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         // Restore saved map position and zoom, or use defaults
         var savedCenter = localStorage.getItem('mapCenter');
         var savedZoom = localStorage.getItem('mapZoom');
-        
+        var filter = localStorage.getItem('standFilter');
+
         var initialLat = savedCenter ? JSON.parse(savedCenter).lat : )"
                  << centerLat << R"(;
         var initialLng = savedCenter ? JSON.parse(savedCenter).lng : )" << centerLon << R"(;
@@ -131,6 +132,18 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         // Save state on move and zoom events
         map.on('moveend', saveMapState);
         map.on('zoomend', saveMapState);
+        
+        // Flag to track if reload is intentional (auto-reload vs page close)
+        var isAutoReloading = false;
+        
+        // Clear localStorage when page is closed (but not on auto-reload)
+        window.addEventListener('beforeunload', function(e) {
+            if (!isAutoReloading) {
+                localStorage.removeItem('mapCenter');
+                localStorage.removeItem('mapZoom');
+                // Keep standFilter for color mode persistence
+            }
+        });
         
         // Add satellite tile layer
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -709,12 +722,28 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
             var radios = panel.querySelectorAll('input[name="colorMode"]');
             radios.forEach(function(r) {
             r.addEventListener('change', function(e) {
-            applyColoring(e.target.value);
+            var mode = e.target.value;
+            applyColoring(mode);
+            // Save the selected mode to localStorage for persistence
+            localStorage.setItem('standFilter', mode);
             });
             });
 
-            // Initial apply (default)
-            setTimeout(function() { applyColoring('default'); }, 50);
+            // Restore saved filter mode from localStorage (or default)
+            var savedMode = filter || 'default';
+            // Select the correct radio button
+            var savedRadio = panel.querySelector('input[name="colorMode"][value="' + savedMode + '"]');
+            if (savedRadio) {
+            savedRadio.checked = true;
+            } else {
+            // fallback to default if saved mode doesn't exist
+            var defaultRadio = panel.querySelector('input[name="colorMode"][value="default"]');
+            if (defaultRadio) defaultRadio.checked = true;
+            savedMode = 'default';
+            }
+            
+            // Initial apply with saved or default mode
+            setTimeout(function() { applyColoring(savedMode); }, 50);
 
             // Expose quick API for console debugging
             window.__mapColoring = {
@@ -725,7 +754,6 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         })();
 
         // Add legend
-        //TODO: make legend dynamic based on current color configuration
         var legend = L.control({position: 'topright'});
         
 
@@ -745,6 +773,8 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                 console.log('✅ File updated! Saving map state and reloading page...');
                 // Save map state before reloading
                 saveMapState();
+                // Set flag so beforeunload doesn't clear storage
+                isAutoReloading = true;
                 window.location.reload(true);
             }
             lastReloadCheck = currentCheck;
