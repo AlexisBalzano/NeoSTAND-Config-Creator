@@ -83,7 +83,7 @@ std::string getBaseDir() {
     return execDir;
 }
 
-bool isCoordinatesValid(std::string &coordinates)
+bool isCoordinatesValid(std::string &coordinates, bool radius)
 {
     // Remove "COORD:" prefix if present
     if (coordinates.substr(0, 6) == "COORD:")
@@ -94,19 +94,31 @@ bool isCoordinatesValid(std::string &coordinates)
     // Basic validation of Degree decimal format
     size_t firstColon = coordinates.find(':');
     size_t secondColon = coordinates.find(':', firstColon + 1);
-    if (firstColon == std::string::npos || secondColon == std::string::npos)
+    if (firstColon == std::string::npos || (secondColon == std::string::npos && radius))
     {
         return false;
     }
     
     // Check if already in decimal format - allow empty radius
-    std::regex degreeDecimalRegex(R"(([-+]?\d{1,3}\.\d+):([-+]?\d{1,3}\.\d+):(\d*))");
+    std::regex degreeDecimalRegex;
+    if (radius == false)
+    {
+        secondColon = coordinates.length();
+        degreeDecimalRegex = R"(([-+]?\d{1,3}\.\d+):([-+]?\d{1,3}\.\d+))";
+    } else {
+        degreeDecimalRegex = R"(([-+]?\d{1,3}\.\d+):([-+]?\d{1,3}\.\d+):(\d*))";
+    }
     if (std::regex_match(coordinates, degreeDecimalRegex))
     {
         // Valid format : 43.666359:7.216941:20
         std::string lat = coordinates.substr(0, firstColon);
         std::string lon = coordinates.substr(firstColon + 1, secondColon - firstColon - 1);
-        std::string radius = coordinates.substr(secondColon + 1);
+        std::string radius_;
+        if (radius == false) {
+            radius_ = "";
+        } else {
+            radius_ = coordinates.substr(secondColon + 1);
+        }
         try
         {
             double latVal = std::stod(lat);
@@ -116,9 +128,9 @@ bool isCoordinatesValid(std::string &coordinates)
                 return false;
             }
             // Validate radius if provided
-            if (!radius.empty())
+            if (!radius_.empty())
             {
-                double radiusVal = std::stod(radius);
+                double radiusVal = std::stod(radius_);
                 if (radiusVal < 9)
                 {
                     return false;

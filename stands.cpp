@@ -100,7 +100,7 @@ void printStandInfo(const nlohmann::ordered_json &standJson)
     if (standJson.contains("Apron"))
     {
         std::cout << " Apron: ";
-        std::cout << (standJson["Apron"].get<bool>() ? "Yes" : "No");
+        std::cout << "Yes";
         std::cout << "|";
     }
     std::cout << RESET << std::endl;
@@ -312,7 +312,51 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
         bool apron = (apronInput == "y" || apronInput == "Y");
         if (apron)
         {
-            configJson["Stands"][standNameUpper]["Apron"] = apron;
+             while (true)
+            {
+                std::cout << "Apron Size: ";
+                std::string size;
+                std::getline(std::cin, size);
+                if (size.empty())
+                {
+                    std::cout << RED << "Apron size cannot be empty." << RESET << std::endl;
+                    continue;
+                }
+                else if (!std::all_of(size.begin(), size.end(), ::isdigit))
+                {
+                    std::cout << RED << "Invalid apron size. Please enter a positive integer." << RESET << std::endl;
+                    continue;
+                }
+                else
+                {
+                    configJson["Stands"][standNameUpper]["Apron"]["Size"] = std::stoi(size);
+                    break;
+                }
+            }
+            std::vector<std::string> coordinatesList;
+            std::cout << "Apron coordinates (optional): ";
+            while (true)
+            {
+                std::string coordinates;
+                std::getline(std::cin, coordinates);
+                if (coordinates.empty())
+                {
+                    break;
+                }
+                if (isCoordinatesValid(coordinates, false) == false)
+                {
+                    std::cout << RED << "Invalid coordinates format. Please use lat:lon (e.g., 43.666359:7.216941)." << RESET << std::endl;
+                    continue;
+                }
+                else
+                {
+                    if (!coordinates.empty())
+                    {
+                        coordinatesList.push_back(coordinates);
+                    }
+                }
+            }
+            configJson["Stands"][standNameUpper]["Apron"]["Coordinates"] = coordinatesList;
         }
 
         std::cout << "Stand " << standNameUpper << " added." << std::endl;
@@ -946,7 +990,7 @@ void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std
         }
     }
 
-    std::cout << "Is it an apron stand? (current: " << (configJson.contains("Apron") ? (configJson["Apron"].get<bool>() ? "Yes" : "No") : "No") << " Y if apron, empty to keep, r to remove): ";
+    std::cout << "Is it an apron stand? (current: " << (configJson.contains("Apron") ? "Yes" : "No") << " Y if apron, empty to keep, r to remove): ";
     std::string apronInput;
     while (true)
     {
@@ -962,7 +1006,51 @@ void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std
         }
         else if (apronInput == "Y" || apronInput == "y")
         {
-            configJson["Apron"] = true;
+            while (true)
+            {
+                std::cout << "Apron Size: ";
+                std::string size;
+                std::getline(std::cin, size);
+                if (size.empty())
+                {
+                    std::cout << RED << "Apron size cannot be empty." << RESET << std::endl;
+                    continue;
+                }
+                else if (!std::all_of(size.begin(), size.end(), ::isdigit))
+                {
+                    std::cout << RED << "Invalid apron size. Please enter a positive integer." << RESET << std::endl;
+                    continue;
+                }
+                else
+                {
+                    configJson["Apron"]["Size"] = std::stoi(size);
+                    break;
+                }
+            }
+            std::vector<std::string> coordinatesList;
+            std::cout << "Apron coordinates (optional): ";
+            while (true)
+            {
+                std::string coordinates;
+                std::getline(std::cin, coordinates);
+                if (coordinates.empty())
+                {
+                    break;
+                }
+                if (isCoordinatesValid(coordinates, false) == false)
+                {
+                    std::cout << RED << "Invalid coordinates format. Please use lat:lon (e.g., 43.666359:7.216941)." << RESET << std::endl;
+                    continue;
+                }
+                else
+                {
+                    if (!coordinates.empty())
+                    {
+                        coordinatesList.push_back(coordinates);
+                    }
+                }
+            }
+            configJson[""]["Apron"]["Coordinates"] = coordinatesList;
             break;
         }
         else
@@ -1492,7 +1580,7 @@ void editApron(nlohmann::ordered_json &configJson, const std::string &standName)
     if (configJson.contains("Stands") && configJson["Stands"].is_object() && configJson["Stands"].contains(standNameUpper))
     {
         nlohmann::ordered_json &standJson = configJson["Stands"][standNameUpper];
-        std::cout << "Current apron status for stand " << standNameUpper << ": " << (standJson.contains("Apron") ? (standJson["Apron"].get<bool>() ? "Yes" : "No") : "No") << std::endl;
+        std::cout << "Current apron status for stand " << standNameUpper << ": " << (standJson.contains("Apron") ? "Yes" : "No") << std::endl;
         std::cout << "Is it an apron stand? (Y if apron, empty to keep, r to remove): ";
         std::string apronInput;
         while (true)

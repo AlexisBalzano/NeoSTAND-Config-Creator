@@ -8,7 +8,7 @@
 #include "stands.h"
 #include "live_reload.h"
 
-constexpr auto version = "v1.1.0";
+constexpr auto version = "v1.1.1";
 
 static void printBanner()
 {

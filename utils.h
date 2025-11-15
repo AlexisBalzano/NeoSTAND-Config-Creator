@@ -35,7 +35,7 @@ std::vector<std::string> splitString(const std::string &str);
 std::vector<std::string> splitRemark(const std::string &str);
 std::string getExecutableDir();
 std::string getBaseDir();
-bool isCoordinatesValid(std::string &coordinates);
+bool isCoordinatesValid(std::string &coordinates, bool radius = true);
 bool useIsValid(const std::string &use);
 bool codeIsValid(const std::string &code);
 std::vector<std::pair<std::string, std::string>> parseStandName(const std::string& standName);
