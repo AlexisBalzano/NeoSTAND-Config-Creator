@@ -115,8 +115,10 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
 
         var initialLat = savedCenter ? JSON.parse(savedCenter).lat : )"
                  << centerLat << R"(;
-        var initialLng = savedCenter ? JSON.parse(savedCenter).lng : )" << centerLon << R"(;
-        var initialZoom = savedZoom ? parseInt(savedZoom) : )" << zoomLevel << R"(;
+        var initialLng = savedCenter ? JSON.parse(savedCenter).lng : )"
+                 << centerLon << R"(;
+        var initialZoom = savedZoom ? parseInt(savedZoom) : )"
+                 << zoomLevel << R"(;
         
         var map = L.map('map', {
             maxZoom: 19  // Increase maximum zoom level
@@ -193,8 +195,13 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                                 htmlFile << "            Use: '" << standData["Use"] << "',\n";
                             if (standData.contains("Schengen"))
                                 htmlFile << "            Schengen: " << (standData["Schengen"].get<bool>() ? "true" : "false") << ",\n";
-                            if (standData.contains("Apron"))
-                                htmlFile << "            Apron: " << (standData["Apron"].get<bool>() ? "true" : "false") << ",\n";
+                            // Safely emit Apron flag: if Apron is boolean use it, if it's an object (with Coordinates) emit true
+                            if (standData.contains("Apron")) {
+                                if (standData["Apron"].is_boolean())
+                                    htmlFile << "            Apron: " << (standData["Apron"].get<bool>() ? "true" : "false") << ",\n";
+                                else
+                                    htmlFile << "            Apron: true,\n";
+                            }
                             if (standData.contains("Remark"))
                                 htmlFile << "            Remark: '" << standData["Remark"] << "',\n";
                             if (standData.contains("Wingspan"))
@@ -204,77 +211,118 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                             if (standData.contains("Priority"))
                                 htmlFile << "            Priority: " << standData["Priority"] << ",\n";
                             htmlFile << "        };\n";
-
-                            htmlFile << "        var circle_" << standNameVar << " = L.circle([" << lat << ", " << lon << "], {\n";
-                            htmlFile << "            radius: " << radius << ",\n";
-                            htmlFile << "            color: getStandColor(stand_" << standNameVar << "),\n";
-                            htmlFile << "            fillColor: getStandColor(stand_" << standNameVar << "),\n";
-                            htmlFile << "            fillOpacity: 0.4\n";
-                            htmlFile << "        }).addTo(map);\n";
-                            htmlFile << "        currentStandElements.push(circle_" << standNameVar << ");\n";
-
-                            // Create popup content
-                            htmlFile << "        var popupContent_" << standNameVar << " = '<div class=\"stand-info\">Stand: " << standName << "</div>';\n";
-                            if (standData.contains("Code"))
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Code: " << standData["Code"] << "';\n";
-                            if (standData.contains("Use"))
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Use: " << standData["Use"] << "';\n";
-                            if (standData.contains("Schengen"))
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Schengen: " << (standData["Schengen"].get<bool>() ? "Yes" : "No") << "';\n";
-                            if (standData.contains("Apron"))
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Apron: " << (standData["Apron"].get<bool>() ? "Yes" : "No") << "';\n";
-                            if (standData.contains("Wingspan"))
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Wingspan: " << standData["Wingspan"].get<double>() << "m';\n";
-                            if (standData.contains("Remark")) {
-                                for (const auto& [code, remark] : standData["Remark"].items())
-                                    htmlFile << "        popupContent_" << standNameVar << " += '<br>Remark (" << code << "): " << remark << "';\n";
-                            }
-                            if (standData.contains("Priority"))
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Priority: " << standData["Priority"] << "';\n";
-                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Radius: " << radius << "m';\n";
-                            htmlFile << "        popupContent_" << standNameVar << " += '<br>Coordinates: " << coords << "';\n";
-
-                            // Add arrays if they exist
-                            if (standData.contains("Callsigns") && standData["Callsigns"].is_array())
+                            
+                            // If apron and coordinates defined, draw polygon from coordinates
+                            if (standData.contains("Apron") && standData["Apron"].contains("Coordinates"))
                             {
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Callsigns: ";
-                                for (auto it = standData["Callsigns"].begin(); it != standData["Callsigns"].end(); ++it)
-                                {
-                                    if (it != standData["Callsigns"].begin())
-                                        htmlFile << ", ";
-                                    htmlFile << *it;
-                                }
-                                htmlFile << "';\n";
-                            }
+                                // define polygon
+                                htmlFile << "        var apronCoords_" << standNameVar << " = [\n";
 
-                            if (standData.contains("Countries") && standData["Countries"].is_array())
+                                for (const auto &coord : standData["Apron"]["Coordinates"].get<std::vector<std::string>>())
+                                {
+                                    std::string coords = coord;
+                                    size_t firstColon = coords.find(':');
+                                    if (firstColon != std::string::npos) {
+                                        double latA = std::stod(coords.substr(0, firstColon));
+                                        double lonA = std::stod(coords.substr(firstColon + 1));
+                                        htmlFile << "            [" << latA << ", " << lonA << "],\n";
+                                    }
+                                }
+                                htmlFile << "        ];\n";
+                                htmlFile << "        var symbol_" << standNameVar << " = L.polygon(apronCoords_" << standNameVar << ", {\n";
+                                htmlFile << "            color: getStandColor(stand_" << standNameVar << "),\n";
+                                htmlFile << "            fillColor: getStandColor(stand_" << standNameVar << "),\n";
+                                htmlFile << "            fillOpacity: 0.4\n";
+                                htmlFile << "        }).addTo(map);\n";
+                            }
+                            else
                             {
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Countries: ";
-                                for (auto it = standData["Countries"].begin(); it != standData["Countries"].end(); ++it)
-                                {
-                                    if (it != standData["Countries"].begin())
-                                        htmlFile << ", ";
-                                    htmlFile << *it;
-                                }
-                                htmlFile << "';\n";
+                                // create circle named "symbol_<name>" (fix typo from 'simbol_')
+                                htmlFile << "        var symbol_" << standNameVar << " = L.circle([" << lat << ", " << lon << "], {\n";
+                                htmlFile << "            radius: " << radius << ",\n";
+                                htmlFile << "            color: getStandColor(stand_" << standNameVar << "),\n";
+                                htmlFile << "            fillColor: getStandColor(stand_" << standNameVar << "),\n";
+                                htmlFile << "            fillOpacity: 0.4\n";
+                                htmlFile << "        }).addTo(map);\n";
                             }
 
-                            if (standData.contains("Block") && standData["Block"].is_array())
-                            {
-                                htmlFile << "        popupContent_" << standNameVar << " += '<br>Blocked: ";
-                                for (auto it = standData["Block"].begin(); it != standData["Block"].end(); ++it)
-                                {
-                                    if (it != standData["Block"].begin())
-                                        htmlFile << ", ";
-                                    htmlFile << *it;
+                            htmlFile << "        currentStandElements.push(symbol_" << standNameVar << ");\n";
+                            
+                            // Helper: escape string for JS single-quoted literal
+                            auto escape_js = [](const std::string &s) {
+                                std::string out;
+                                out.reserve(s.size());
+                                for (char c : s) {
+                                    if (c == '\\') out += "\\\\";
+                                    else if (c == '\'') out += "\\\'";
+                                    else if (c == '\n') out += "\\n";
+                                    else if (c == '\r') continue;
+                                    else out += c;
                                 }
-                                htmlFile << "';\n";
+                                return out;
+                            };
+
+                            // Build popup content with safe string extraction (avoid json operator<< which emits quotes/objects)
+                            std::string popupVar = "popupContent_" + standNameVar;
+                            htmlFile << "        var " << popupVar << " = '<div class=\"stand-info\">Stand: " << escape_js(standName) << "</div>';\n";
+
+                            if (standData.contains("Code") && standData["Code"].is_string()) {
+                                htmlFile << "        " << popupVar << " += '<br>Code: " << escape_js(standData["Code"].get<std::string>()) << "';\n";
                             }
+                            if (standData.contains("Use") && standData["Use"].is_string()) {
+                                htmlFile << "        " << popupVar << " += '<br>Use: " << escape_js(standData["Use"].get<std::string>()) << "';\n";
+                            }
+                            if (standData.contains("Schengen") && standData["Schengen"].is_boolean()) {
+                                htmlFile << "        " << popupVar << " += '<br>Schengen: " << (standData["Schengen"].get<bool>() ? "Yes" : "No") << "';\n";
+                            }
+                            // Apron may be boolean or object -> treat object as Yes
+                            if (standData.contains("Apron")) {
+                                if (standData["Apron"].is_boolean())
+                                    htmlFile << "        " << popupVar << " += '<br>Apron: " << (standData["Apron"].get<bool>() ? "Yes" : "No") << "';\n";
+                                else
+                                    htmlFile << "        " << popupVar << " += '<br>Apron: Yes';\n";
+                            }
+                            if (standData.contains("Wingspan")) {
+                                if (standData["Wingspan"].is_number())
+                                    htmlFile << "        " << popupVar << " += '<br>Wingspan: " << standData["Wingspan"].get<double>() << "m';\n";
+                                else if (standData["Wingspan"].is_string())
+                                    htmlFile << "        " << popupVar << " += '<br>Wingspan: " << escape_js(standData["Wingspan"].get<std::string>()) << "m';\n";
+                            }
+                            if (standData.contains("Remark") && standData["Remark"].is_object()) {
+                                for (const auto &it : standData["Remark"].items()) {
+                                    htmlFile << "        " << popupVar << " += '<br>Remark (" << escape_js(it.key()) << "): " << escape_js(it.value().is_string() ? it.value().get<std::string>() : it.value().dump()) << "';\n";
+                                }
+                            }
+                            if (standData.contains("Priority")) {
+                                htmlFile << "        " << popupVar << " += '<br>Priority: " << standData["Priority"] << "';\n";
+                            }
+                            htmlFile << "        " << popupVar << " += '<br>Radius: " << radius << "m';\n";
+                            htmlFile << "        " << popupVar << " += '<br>Coordinates: " << escape_js(coords) << "';\n";
 
-                            htmlFile << "        circle_" << standNameVar << ".bindPopup(popupContent_" << standNameVar << ");\n";
+                            // arrays: Callsigns / Countries / Block
+                            auto emit_array_as_text = [&](const std::string &field, const std::string &label) {
+                                if (standData.contains(field) && standData[field].is_array()) {
+                                    htmlFile << "        " << popupVar << " += '<br>" << label << ": ";
+                                    bool first = true;
+                                    for (const auto &v : standData[field]) {
+                                        if (!first) htmlFile << ", ";
+                                        first = false;
+                                        if (v.is_string())
+                                            htmlFile << escape_js(v.get<std::string>());
+                                        else
+                                            htmlFile << escape_js(v.dump());
+                                    }
+                                    htmlFile << "';\n";
+                                }
+                            };
+                            emit_array_as_text("Callsigns", "Callsigns");
+                            emit_array_as_text("Countries", "Countries");
+                            emit_array_as_text("Block", "Blocked");
 
-                            // Add click event to circle for coordinate copying
-                            htmlFile << "        circle_" << standNameVar << ".on('click', function(e) {\n";
+                            htmlFile << "        symbol_" << standNameVar << ".bindPopup(" << popupVar << ");\n";
+
+                            // Add click event to symbol for coordinate copying
+                            htmlFile << "        symbol_" << standNameVar << ".on('click', function(e) {\n";
                             htmlFile << "            var lat = e.latlng.lat.toFixed(6);\n";
                             htmlFile << "            var lng = e.latlng.lng.toFixed(6);\n";
                             htmlFile << "            var coordString = lat + ':' + lng;\n";
@@ -314,7 +362,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
                         }
                         catch (...)
                         {
-                            std::cout << YELLOW << "Warning: Invalid coordinates for stand " << standName << RESET << std::endl;
+                            std::cout << YELLOW << "Warning: Invalid coordinates for stand " << standName << " (coords: " << coords << ")" << RESET << std::endl;
                         }
                     }
                 }
@@ -815,7 +863,7 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         </script>
         </body>
         <!-- Generated: )"
-             << timestamp << R"( -->
+                 << timestamp << R"( -->
         </html>)";
 
         htmlFile.close();
@@ -832,20 +880,20 @@ void generateMap(const nlohmann::ordered_json &configJson, const std::string &ic
         if (openBrowser)
         {
 #ifdef _WIN32
-        // Use ShellExecuteA to open the browser without blocking
-        std::string mapFileName = std::filesystem::path(filename).filename().string();
-        std::string localhost_url = "http://localhost:" + std::to_string(g_liveServer->getPort()) + "/" + mapFileName;
-        ShellExecuteA(NULL, "open", localhost_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-        std::cout << "Map opened at " << localhost_url << std::endl;
+            // Use ShellExecuteA to open the browser without blocking
+            std::string mapFileName = std::filesystem::path(filename).filename().string();
+            std::string localhost_url = "http://localhost:" + std::to_string(g_liveServer->getPort()) + "/" + mapFileName;
+            ShellExecuteA(NULL, "open", localhost_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+            std::cout << "Map opened at " << localhost_url << std::endl;
 #else
-        // Try to open with the platform default opener in background so it doesn't block
-    #if defined(__APPLE__)
-        std::string openCmd = "open \"" + filename + "\" &";
-    #else
-        std::string openCmd = "xdg-open \"" + filename + "\" &";
-    #endif
-        std::system(openCmd.c_str());
-        std::cout << "Map generated at " << filename << std::endl;
+            // Try to open with the platform default opener in background so it doesn't block
+#if defined(__APPLE__)
+            std::string openCmd = "open \"" + filename + "\" &";
+#else
+            std::string openCmd = "xdg-open \"" + filename + "\" &";
+#endif
+            std::system(openCmd.c_str());
+            std::cout << "Map generated at " << filename << std::endl;
 #endif
         }
     }
