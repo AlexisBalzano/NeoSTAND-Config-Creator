@@ -356,7 +356,9 @@ void addStand(nlohmann::ordered_json &configJson, const std::string &standName)
                     }
                 }
             }
-            configJson["Stands"][standNameUpper]["Apron"]["Coordinates"] = coordinatesList;
+            if (!coordinatesList.empty()) {
+                configJson["Stands"][standNameUpper]["Apron"]["Coordinates"] = coordinatesList;
+            }
         }
 
         std::cout << "Stand " << standNameUpper << " added." << std::endl;
@@ -1050,7 +1052,9 @@ void iterateAndModifyStandSettings(nlohmann::ordered_json &configJson, const std
                     }
                 }
             }
-            configJson["Apron"]["Coordinates"] = coordinatesList;
+            if (!coordinatesList.empty()) {
+                configJson["Apron"]["Coordinates"] = coordinatesList;
+            }
             break;
         }
         else
